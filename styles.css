@@ -293,7 +293,7 @@ body{background:#f8fafd;color:var(--map-ink)}
 .area-chip small{color:#5f6368}
 .icon-button{width:39px;height:39px;border:1px solid #dadce0;border-radius:50%;background:#fff;color:#3c4043;box-shadow:0 2px 7px #20212418}
 .icon-button:hover{background:#f8fafd;color:#1967d2}
-.map-bottom{background:#fffFfff0;color:#5f6368}
+.map-bottom{background:#fffffff0;color:#5f6368}
 .map-bottom a{color:#1a73e8}
 #map-loader{border:1px solid #dadce0;border-radius:12px;background:#fff;color:#5f6368;box-shadow:0 6px 22px #2021241c}
 #toast{border-radius:10px;background:#202124}
