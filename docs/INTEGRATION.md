@@ -62,6 +62,54 @@ export function MapView() {
 
 Run map creation only in a client component. Do not instantiate WebGL maps during server rendering.
 
+## Worldwide places overlay (experimental)
+
+Install the PMTiles protocol package in addition to MapLibre:
+
+~~~bash
+npm install github:harshyadavv2456/HarshMaps maplibre-gl pmtiles
+~~~
+
+Register the protocol and add the optional global Overture Places layer after the base style has loaded:
+
+~~~ts
+import * as maplibregl from 'maplibre-gl';
+import { Protocol } from 'pmtiles';
+import { HarshMaps } from 'harshmaps';
+import {
+  addOverturePlaces,
+  bindOverturePlacePopups
+} from 'harshmaps/places-layer';
+
+const protocol = new Protocol();
+maplibregl.addProtocol('pmtiles', protocol.tile);
+
+const map = HarshMaps.createMap(maplibregl, 'map', {
+  style: HarshMaps.styles.liberty,
+  center: [79.0882, 21.1458],
+  zoom: 12
+});
+
+map.once('load', async () => {
+  try {
+    const response = await fetch(
+      'https://harshyadavv2456.github.io/HarshMaps/data/overture-release.json',
+      { cache: 'no-store' }
+    );
+    if (!response.ok) throw new Error('Places release metadata unavailable');
+    const metadata = await response.json();
+    addOverturePlaces(map, metadata.release, { category: 'all', visible: true });
+    bindOverturePlacePopups(map, maplibregl);
+  } catch (error) {
+    console.warn('HarshMaps Places layer is unavailable', error);
+  }
+});
+~~~
+
+Category values: `all`, `food`, `shopping`, `health`, `education`, `lodging`, `landmarks`, and `services`. The layer returns point markers and popup names/categories where those properties are present.
+
+**Source and freshness caveat:** the layer streams Overture's publicly hosted Places PMTiles for data inspection. The GitHub Actions checker polls Overture STAC every 15 minutes but publishes a change only when a new release appears; Overture's published Places data release cadence is monthly. Official Overture docs say not to use those inspection tiles in production because their schema and availability can change. A production deployment should generate and host its own versioned tiles or controlled places API from the source dataset. Read [FREE_INTEGRATION.md](./FREE_INTEGRATION.md) and [PROVIDERS.md](./PROVIDERS.md#worldwide-places-layer--overture-maps).
+
 ## Change style
 
 ~~~js
