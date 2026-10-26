@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  detectPlaceCategory,
+  extractCategoryLocation
+} from '../sdk/search-intent.js';
+import {
   formatDistance,
   haversineDistanceMeters,
   normalizeOvertureFeature,
@@ -56,4 +60,12 @@ test('nearby results enforce a bounded result limit', () => {
     geometry: { coordinates: [79.08 + i / 1000, 21.14] }
   }));
   assert.equal(rankNearbyPlaces(features, [79.08, 21.14], { limit: 3 }).length, 3);
+});
+
+test('natural category queries keep their location separate', () => {
+  assert.equal(detectPlaceCategory('ATMs in Nagpur')?.id, 'banks');
+  assert.equal(detectPlaceCategory('Find the best gynecologist in Nagpur')?.id, 'health');
+  assert.equal(detectPlaceCategory('restaurants near me')?.id, 'food');
+  assert.equal(extractCategoryLocation('ATMs in Nagpur, Maharashtra'), 'Nagpur, Maharashtra');
+  assert.equal(extractCategoryLocation('restaurants near me'), '');
 });
