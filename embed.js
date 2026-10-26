@@ -54,13 +54,14 @@ async function refreshPlacesLayer() {
     if (!response.ok) throw new Error('Places release metadata returned HTTP ' + response.status);
     const metadata = await response.json();
     if (!validOvertureRelease(metadata.release)) throw new Error('Invalid Overture release identifier.');
-    if (placesRelease === metadata.release && map.getLayer('harshmaps-overture-place-dots') && map.getLayer('harshmaps-overture-place-labels')) return;
+    if (placesRelease === metadata.release && map.getLayer('harshmaps-overture-place-dots') && map.getLayer('harshmaps-overture-place-labels')) { setStatus('Map ready · global places active · Overture ' + metadata.release); return; }
     addOverturePlaces(map, metadata.release, { visible: true });
     if (!placesLayerBound) {
       bindOverturePlacePopups(map, maplibregl);
       placesLayerBound = true;
     }
     placesRelease = metadata.release;
+    setStatus('Map ready · global places active · Overture ' + metadata.release);
   } catch (error) {
     setStatus('Places layer unavailable · ' + (error && error.message ? error.message : 'try again later'));
   }
