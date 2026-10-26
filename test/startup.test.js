@@ -31,7 +31,7 @@ test('map startup has a raster fallback and terminal error state', async () => {
 
 test('the main search handler exists and the search input exposes its dropdown', async () => {
   const source = await readFile(appPath, 'utf8');
-  assert.match(source, /async function search\\(query,options=\\{\\}\\)/);
-  assert.match(source, /function renderSearchSuggestions\\(/);
-  assert.match(source, /search\\(\\$\\('#place-query'\\)\\.value,\\{live:false\\}\\)/);
+  assert.ok(source.includes('async function search(query,options={})'));
+  assert.ok(source.includes('function renderSearchSuggestions('));
+  assert.ok(source.includes("search($('#place-query').value,{live:false})"));
 });
