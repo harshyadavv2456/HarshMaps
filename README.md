@@ -23,7 +23,7 @@ HarshMaps is an open mapping toolkit built on [MapLibre GL JS](https://maplibre.
 | Hosted vector tiles/styles | OpenFreeMap | No | Free public service; availability is not guaranteed |
 | Global places overlay | Overture Maps Places PMTiles | No | Experimental public inspection tiles; source releases are monthly |
 | Place/address search | Photon public demo | No | Best-effort, reasonable use only |
-| Driving route preview | OSRM demo server | No | Best-effort, no SLA |
+| Driving, walking and cycling | OpenStreetMap FOSSGIS/OSRM demo profiles | No | Light-use public demos; best-effort, no SLA |
 | Geolocation | Browser Geolocation API | No | User permission required |
 | Custom styles | MapLibre style JSON | Depends on provider | Switch styles or host your own |
 
@@ -55,7 +55,7 @@ For the no-build route, use the Free Integration Studio on the homepage to gener
 - Optional city/area scope, branch disambiguation and one-click directions from a selected place
 - Category browsing for banks/ATMs, food, shopping, healthcare, schools, hotels and landmarks
 - Browser geolocation
-- Driving route preview with distance and duration estimates
+- Driving, walking and cycling previews with route alternatives, turn steps, distance and duration estimates
 - Route and marker helpers
 - Worldwide places overlay with category filters and point popups
 - A GitHub Actions release checker that polls Overture STAC every 15 minutes and republishes only when the upstream release changes
