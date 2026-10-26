@@ -289,6 +289,29 @@ export async function searchNominatim(query, options = {}) {
   }
 }
 
+let nominatimQueue = Promise.resolve();
+let lastNominatimStartedAt = 0;
+
+// Nominatim's public server asks clients to stay at or below one request per second.
+// Keep explicit submitted lookups serialized and apply a small margin between starts.
+async function searchNominatimThrottled(query, options = {}) {
+  const previous = nominatimQueue;
+  let release;
+  const slot = new Promise(resolve => { release = resolve; });
+  nominatimQueue = previous.then(() => slot);
+  await previous;
+  try {
+    if (options.signal?.aborted) throw options.signal.reason || new DOMException('Search cancelled.', 'AbortError');
+    const delay = Math.max(0, 1_100 - (Date.now() - lastNominatimStartedAt));
+    if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay));
+    if (options.signal?.aborted) throw options.signal.reason || new DOMException('Search cancelled.', 'AbortError');
+    lastNominatimStartedAt = Date.now();
+    return await searchNominatim(query, options);
+  } finally {
+    release();
+  }
+}
+
 export async function searchOverpassPlaces(query, options = {}) {
   if (!validCenter(options.center)) throw new TypeError('A valid center is required for nearby business search.');
   const q = normalizeSearchQuery(query);
@@ -427,7 +450,7 @@ export async function searchPlacesResilient(query, options = {}) {
   if (locationQuery && options.allowNominatimFallback && !options.areaCoordinates) {
     nominatimAttemptedForLocation = true;
     try {
-      const locations = await searchNominatim(locationQuery, {
+      const locations = await searchNominatimThrottled(locationQuery, {
         limit: 5, signal: options.signal, fetchImpl: options.fetchImpl,
         countryCode: options.countryCode
       });
@@ -492,7 +515,7 @@ export async function searchPlacesResilient(query, options = {}) {
   let nominatimPlaces = [];
   if (!combined.length && options.allowNominatimFallback && !nominatimAttemptedForLocation) {
     try {
-      nominatimPlaces = await searchNominatim(effectiveQuery, {
+      nominatimPlaces = await searchNominatimThrottled(effectiveQuery, {
         limit: options.limit || 10, signal: options.signal,
         fetchImpl: options.fetchImpl, countryCode: options.countryCode
       });
@@ -515,6 +538,6 @@ export async function searchPlacesResilient(query, options = {}) {
     locationResolution,
     errors
   };
-  cacheSearchResult(cacheKey, finalResult, live ? 120_000 : 300_000);
+  cacheSearchResult(cacheKey, finalResult, errors.length ? (live ? 15_000 : 30_000) : (live ? 120_000 : 300_000));
   return finalResult;
 }
