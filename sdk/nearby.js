@@ -102,7 +102,7 @@ export function rankNearbyPlaces(features, center, options = {}) {
     const place = normalizeOvertureFeature(feature);
     if (!place) continue;
     const key = place.name.toLocaleLowerCase() + ':' +
-      place.coordinates[0].toFixed(3) + ':' + place.coordinates[1].toFixed(3);
+      place.coordinates[0].toFixed(4) + ':' + place.coordinates[1].toFixed(4);
     const distanceMeters = haversineDistanceMeters(center, place.coordinates);
     const existing = unique.get(key);
     if (!existing || distanceMeters < existing.distanceMeters) {
