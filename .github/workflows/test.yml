@@ -15,4 +15,6 @@ jobs:
           node-version: 22
       - run: node --check app.js
       - run: node --check embed.js
+      - run: node --check sdk/places-layer.js
+      - run: node --check scripts/refresh-overture-release.mjs
       - run: npm test
