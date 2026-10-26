@@ -3,7 +3,7 @@ export declare const OVERTURE_PLACES_SOURCE_ID: string;
 export declare const OVERTURE_PLACES_DOTS_ID: string;
 export declare const OVERTURE_PLACES_LABELS_ID: string;
 export declare const OVERTURE_PLACES_ATTRIBUTION: string;
-export type PlaceCategory = 'all' | 'food' | 'shopping' | 'health' | 'education' | 'lodging' | 'landmarks' | 'services';
+export type PlaceCategory = 'all' | 'food' | 'shopping' | 'health' | 'banks' | 'education' | 'lodging' | 'landmarks' | 'services';
 export declare const PLACE_CATEGORY_GROUPS: Readonly<Record<PlaceCategory, readonly string[] | null>>;
 export declare function validOvertureRelease(value: unknown): value is string;
 export declare function overturePlacesUrl(release: string): string;
