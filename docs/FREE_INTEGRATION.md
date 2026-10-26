@@ -43,12 +43,13 @@ Paste this into a custom HTML block on a static site, landing page, blog, WordPr
 | locate | true / false | true | Show the device-location button |
 | controls | true / false | true | Show zoom and compass controls |
 | marker | true / false | false | Place a pin at the initial center |
+| places | true / false | true | Show the experimental Overture points-of-interest layer |
 | places | true / false | true | Show the experimental global points-of-interest overlay |
 | label | text | empty | Optional popup label for the marker |
 
 ## Worldwide places overlay
 
-The standalone embed and main explorer can display an Overture Places vector-tile layer. It requests only the tiles intersecting the current map view, instead of downloading the global data file into the browser. The current Overture release is recorded at `data/overture-release.json`; `.github/workflows/refresh-places.yml` checks the official STAC catalog every 15 minutes and publishes a new pointer only after the upstream release changes.
+The standalone embed and main explorer can display an Overture Places vector-tile layer. It requests only the tiles intersecting the current map view, instead of downloading the global data file into the browser. Place markers are designed for close-up exploration (zoom 14 and above in the public inspection tiles). The current Overture release is recorded at `data/overture-release.json`; `.github/workflows/refresh-places.yml` checks the official STAC catalog every 15 minutes and publishes a new pointer only after the upstream release changes.
 
 **Important freshness distinction:** the workflow polls every 15 minutes, but Overture's Places dataset is released monthly. It does not crawl every listing every 15 minutes. The currently linked Overture PMTiles are published for data inspection; Overture explicitly says not to use those public tiles in production because layer schemas, fields, and availability can change. For production, build and host your own stable tiles from Overture's source GeoParquet data, or operate a controlled places API. See the [official Overture tile guidance](https://docs.overturemaps.org/getting-data/cloud-sources/).
 
