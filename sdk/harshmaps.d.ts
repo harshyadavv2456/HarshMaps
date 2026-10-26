@@ -1,6 +1,6 @@
 export type LngLat=[longitude:number,latitude:number];
-export interface HarshMapsPlace{id:string;name:string;label:string;coordinates:LngLat;city:string;state:string;country:string;extent:number[]|null;properties:Record<string,unknown>}
-export interface SearchPlacesOptions{baseUrl?:string;limit?:number;lat?:number;lon?:number;zoom?:number;fetchImpl?:typeof fetch}
+export interface HarshMapsPlace{id:string;name:string;label:string;coordinates:LngLat;city:string;state:string;country:string;postcode:string;district:string;street:string;category:string;layer:string;extent:[minLongitude:number,minLatitude:number,maxLongitude:number,maxLatitude:number]|null;properties:Record<string,unknown>}
+export interface SearchPlacesOptions{baseUrl?:string;limit?:number;lat?:number;lon?:number;zoom?:number;locationBiasScale?:number;bbox?:[minLongitude:number,minLatitude:number,maxLongitude:number,maxLatitude:number];layers?:string[];lang?:string;signal?:AbortSignal;fetchImpl?:typeof fetch}
 export interface RouteOptions{baseUrl?:string;profile?:string;alternatives?:boolean;fetchImpl?:typeof fetch}
 export interface HarshMapsRoute{distance:number;duration:number;geometry:GeoJSON.LineString;feature:GeoJSON.FeatureCollection<GeoJSON.LineString>;alternatives:Array<{distance:number;duration:number;geometry:GeoJSON.LineString}>;steps:Array<{distance:number;duration:number;name:string;mode:string;maneuver:Record<string,unknown>}>;waypoints:unknown[]}
 export interface MapOptions{style?:string|Record<string,unknown>;center?:LngLat;zoom?:number;controls?:boolean;[key:string]:unknown}
