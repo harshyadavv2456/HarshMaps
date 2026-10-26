@@ -1,9 +1,64 @@
-import * as maplibregl from 'https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.mjs';
 import { HarshMaps } from './sdk/harshmaps.js';
-import { Protocol } from 'https://cdn.jsdelivr.net/npm/pmtiles@4.5.0/+esm';
 import { addOverturePlaces, bindOverturePlacePopups, validOvertureRelease, setOverturePlacesVisible } from './sdk/places-layer.js';
-const pmtilesProtocol = new Protocol();
-maplibregl.addProtocol('pmtiles', pmtilesProtocol.tile);
+
+function withImportTimeout(promise, milliseconds, label) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(label + ' timed out.')), milliseconds); })
+  ]).finally(() => clearTimeout(timer));
+}
+async function loadMapLibre() {
+  const sources = [
+    'https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.mjs',
+    'https://cdn.jsdelivr.net/npm/maplibre-gl@6.16.0/dist/maplibre-gl.mjs',
+    'https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.mjs'
+  ];
+  let lastError = null;
+  for (const source of sources) {
+    try { return await withImportTimeout(import(source), 6000, 'Map engine CDN'); }
+    catch (error) { lastError = error; }
+  }
+  const loader = document.querySelector('#map-loader');
+  if (loader) { loader.classList.remove('hidden'); loader.classList.add('failed'); loader.querySelector('span').textContent = 'Map engine unavailable. Check your connection and reload this page.'; }
+  const status = document.querySelector('#embed-status');
+  if (status) status.textContent = 'Map engine unavailable · CDN requests failed';
+  throw lastError || new Error('Could not load the MapLibre map engine.');
+}
+const maplibregl = await loadMapLibre();
+
+let pmtilesProtocolPromise = null;
+function ensurePmtilesProtocol() {
+  if (pmtilesProtocolPromise) return pmtilesProtocolPromise;
+  const setup = (async () => {
+    let lastError = null;
+    for (const source of ['https://cdn.jsdelivr.net/npm/pmtiles@4.5.0/+esm', 'https://esm.sh/pmtiles@4.5.0']) {
+      try {
+        const pmtiles = await withImportTimeout(import(source), 6000, 'Places library CDN');
+        if (typeof pmtiles.Protocol !== 'function') throw new Error('PMTiles did not expose its MapLibre protocol.');
+        maplibregl.addProtocol('pmtiles', new pmtiles.Protocol().tile);
+        return true;
+      } catch (error) { lastError = error; }
+    }
+    throw lastError || new Error('PMTiles could not be loaded.');
+  })();
+  pmtilesProtocolPromise = setup.catch(error => { pmtilesProtocolPromise = null; throw error; });
+  return pmtilesProtocolPromise;
+}
+const RASTER_FALLBACK_STYLE = {
+  version: 8,
+  sources: {
+    'osm-raster': {
+      type: 'raster',
+      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      minzoom: 0,
+      maxzoom: 19,
+      attribution: '© OpenStreetMap contributors'
+    }
+  },
+  layers: [{ id: 'osm-raster-layer', type: 'raster', source: 'osm-raster', minzoom: 0, maxzoom: 19 }]
+};
 
 const params = new URLSearchParams(window.location.search);
 const styles = HarshMaps.styles;
@@ -55,6 +110,7 @@ async function refreshPlacesLayer() {
     const metadata = await response.json();
     if (!validOvertureRelease(metadata.release)) throw new Error('Invalid Overture release identifier.');
     if (placesRelease === metadata.release && map.getLayer('harshmaps-overture-place-dots') && map.getLayer('harshmaps-overture-place-labels')) { setStatus('Map ready · global places active · Overture ' + metadata.release); return; }
+    await ensurePmtilesProtocol();
     addOverturePlaces(map, metadata.release, { visible: true });
     if (!placesLayerBound) {
       bindOverturePlacePopups(map, maplibregl);
@@ -79,14 +135,50 @@ function placeMarker(place, label = place.name || place.label) {
 if (pin) {
   placeMarker({ coordinates: center, name: markerLabel || 'Pinned location', label: markerLabel || 'Pinned location' }, markerLabel || undefined);
 }
-map.on('load', () => {
+let mapStartupReady = false;
+let rasterFallbackActive = false;
+let mapStartupTimer = null;
+let mapFallbackTimer = null;
+function finishMapStartup(useFallback = false) {
+  if (mapStartupReady) return;
+  mapStartupReady = true;
+  clearTimeout(mapStartupTimer);
+  clearTimeout(mapFallbackTimer);
   $('#map-loader').classList.add('hidden');
-  setStatus('Map ready · OpenFreeMap · © OpenStreetMap contributors');
+  setStatus(useFallback ? 'Backup raster map active · OpenStreetMap tiles' : 'Map ready · OpenFreeMap · © OpenStreetMap contributors');
   refreshPlacesLayer();
+}
+function failMapStartup(message) {
+  const loader = $('#map-loader');
+  loader.classList.remove('hidden');
+  loader.classList.add('failed');
+  loader.querySelector('span').textContent = message;
+  setStatus('Map services unavailable · check connection');
+}
+map.on('load', () => {
+  if (!rasterFallbackActive) finishMapStartup(false);
+  else if (map.getStyle()?.sources?.['osm-raster']) finishMapStartup(true);
+});
+map.on('style.load', () => {
+  if (rasterFallbackActive && !mapStartupReady && map.getStyle()?.sources?.['osm-raster']) finishMapStartup(true);
 });
 map.on('error', (event) => {
-  if (event && event.error && !map.loaded()) setStatus('Map service is still connecting. Please retry shortly.');
+  if (event && event.error && !mapStartupReady) setStatus('Map provider is slow or unavailable · trying recovery…');
 });
+mapStartupTimer = setTimeout(() => {
+  if (mapStartupReady || rasterFallbackActive) return;
+  rasterFallbackActive = true;
+  setStatus('Vector map stalled · trying a backup basemap');
+  const loader = $('#map-loader');
+  loader.classList.remove('hidden');
+  loader.classList.remove('failed');
+  loader.querySelector('span').textContent = 'Switching to backup map…';
+  mapFallbackTimer = setTimeout(() => {
+    if (!mapStartupReady) failMapStartup('Map services did not respond. Check your internet connection and reload this page.');
+  }, 12000);
+  try { map.setStyle(RASTER_FALLBACK_STYLE); }
+  catch (error) { failMapStartup('Could not start the backup map. Check your connection and reload this page.'); }
+}, 14000);
 
 $('#embed-search').addEventListener('submit', async (event) => {
   event.preventDefault();
