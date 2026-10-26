@@ -2,7 +2,7 @@
 
 **No build step?** Start with the [Free Integration Kit](./FREE_INTEGRATION.md) for a copy-ready iframe, URL options and React Native/Flutter WebView examples. The guide below covers direct SDK integration.
 
-The SDK is a small browser ES module with no build dependency. You supply a MapLibre GL JS module; HarshMaps supplies map defaults and helpers for search, routes, markers, and route drawing.
+The SDK is a small browser ES module with no build dependency. You supply a MapLibre GL JS module; HarshMaps supplies map defaults and helpers for search, routes, markers, and route drawing. The explorer adds debounced search-as-you-type, optional city/area focus, explicit result selection to prevent wrong-city jumps, category browsing for common POIs, and route-endpoint suggestions.
 
 ## Plain HTML — no build step
 
