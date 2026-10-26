@@ -66,6 +66,11 @@ test('natural category queries keep their location separate', () => {
   assert.equal(detectPlaceCategory('ATMs in Nagpur')?.id, 'banks');
   assert.equal(detectPlaceCategory('Find the best gynecologist in Nagpur')?.id, 'health');
   assert.equal(detectPlaceCategory('restaurants near me')?.id, 'food');
+  assert.equal(detectPlaceCategory('Where can I find restaurants in Nagpur')?.id, 'food');
   assert.equal(extractCategoryLocation('ATMs in Nagpur, Maharashtra'), 'Nagpur, Maharashtra');
   assert.equal(extractCategoryLocation('restaurants near me'), '');
+});
+
+test('place category location parsing accepts landmarks', () => {
+  assert.equal(extractCategoryLocation('pharmacy near Central Station, Nagpur'), 'Central Station, Nagpur');
 });
