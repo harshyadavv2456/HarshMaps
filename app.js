@@ -196,7 +196,7 @@ async function showNearbyCategoryResults(category,options={}){
      retry.type='button';
      retry.className='nearby-results-retry';
      retry.textContent='Retry nearby search';
-     retry.addEventListener('click',()=>{void showNearbyCategoryResults(category)});
+     retry.addEventListener('click',()=>{void showNearbyCategoryResults(category,options)});
      panel.append(retry);
      box.append(panel);
      status('No labeled places found in the visible map tiles',true);
@@ -252,7 +252,7 @@ async function showNearbyCategoryResults(category,options={}){
    retry.type='button';
    retry.className='nearby-results-retry';
    retry.textContent='Retry nearby search';
-   retry.addEventListener('click',()=>{void showNearbyCategoryResults(category)});
+   retry.addEventListener('click',()=>{void showNearbyCategoryResults(category,options)});
    panel.append(retry);
    box.append(panel);
    status('Nearby place lookup unavailable',true);
