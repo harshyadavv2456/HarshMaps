@@ -199,3 +199,6 @@
 .result-recommendation{display:inline-flex;margin:4px 5px 0 0;padding:3px 5px;border:1px solid #e2defb;border-radius:4px;background:#faf9ff;color:#6254d8;font-size:7px;font-weight:850}
 .result-distance{display:inline-flex;margin-top:4px;color:#73798c;font-size:8px;font-weight:750}
 @media(max-width:420px){.search-suggestions{max-height:280px}.search-suggestion{padding:9px}.search-suggestion-distance{font-size:7px}}
+
+.search-suggestion-copy .search-suggestion-reason{color:#6a6f83;font-size:8px;line-height:1.45}
+.result-recommendation-reasons{display:block;margin-top:4px;color:#777c8d;font-size:8px;line-height:1.5;overflow-wrap:anywhere}
