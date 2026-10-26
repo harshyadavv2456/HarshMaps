@@ -199,13 +199,13 @@ $('#search-form').addEventListener('submit',event=>{event.preventDefault();clear
 $('#place-query').addEventListener('input',()=>{
  const value=$('#place-query').value.trim();
  clearTimeout(searchTimer);
- if(searchController)searchController.abort();
+ if(searchController){searchController.abort();searchRequestId++}
  if(value.length<3){if(value.length===0)setEmptySearch('Search for a bank, shop, landmark or address. Add a city above to narrow results.','Your next destination');return}
  searchTimer=setTimeout(()=>search(value,{live:true}),SEARCH_DEBOUNCE_MS);
 });
 $('#search-location').addEventListener('input',()=>{
  const q=$('#search-location').value.trim();selectedSearchArea=null;$('#selected-search-area').hidden=true;$('#clear-search-location').hidden=!q;clearTimeout(areaTimer);
- if(areaController)areaController.abort();
+ if(areaController){areaController.abort();areaRequestId++}
  if(q.length<2){$('#location-suggestions').hidden=true;return}
  areaTimer=setTimeout(()=>searchAreas(q),400);
 });
