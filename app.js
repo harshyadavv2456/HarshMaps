@@ -72,6 +72,29 @@ function updateZoom(){$('#zoom-status').textContent='ZOOM '+map.getZoom().toFixe
 function labelView(title,subtitle){$('#view-title').textContent=title;$('#view-subtitle').textContent=subtitle||'VECTOR MAP · LIVE TILES'}
 function clearMarkers(list){list.forEach(marker=>marker.remove());list.length=0}
 function marker(place,destination=false,routeMarker=false){const m=HarshMaps.addMarker(maplibregl,map,place.coordinates,{color:destination?'#202434':'#675bf4',label:place.name});(routeMarker||destination?routeMarkers:searchMarkers).push(m);return m}
+let mapStartupReady=false,rasterFallbackActive=false,mapControlsAdded=false,mapStartupTimer=null,mapFallbackTimer=null;
+function finishMapStartup(useFallback=false){
+ if(mapStartupReady)return;
+ mapStartupReady=true;clearTimeout(mapStartupTimer);clearTimeout(mapFallbackTimer);
+ $('#map-loader').classList.add('hidden');status(useFallback?'Backup raster map active · OpenStreetMap tiles':'Connected · OpenFreeMap vector tiles',useFallback);updateZoom();
+ if(!mapControlsAdded){map.addControl(new maplibregl.GeolocateControl({positionOptions:{enableHighAccuracy:true},trackUserLocation:false,showUserHeading:true}),'top-right');mapControlsAdded=true}
+ refreshPlacesLayer();
+}
+function failMapStartup(message){
+ const loader=$('#map-loader');loader.classList.remove('hidden');loader.classList.add('failed');loader.textContent=message;status('Map services unavailable',true);
+}
+map.on('load',()=>{if(!rasterFallbackActive)finishMapStartup(false);else if(map.getStyle()?.sources?.['osm-raster'])finishMapStartup(true)});
+map.on('style.load',()=>{if(rasterFallbackActive&&!mapStartupReady&&map.getStyle()?.sources?.['osm-raster'])finishMapStartup(true)});
+map.on('zoom',updateZoom);
+map.on('error',e=>{if(!mapStartupReady&&e&&e.error)status('Map service is slow or unavailable · trying recovery…',true)});
+mapStartupTimer=setTimeout(()=>{
+ if(mapStartupReady||rasterFallbackActive)return;
+ rasterFallbackActive=true;status('Vector map is not responding · trying a backup basemap',true);
+ const loader=$('#map-loader');loader.classList.remove('hidden');loader.classList.remove('failed');loader.textContent='Vector tiles unavailable · switching to backup map…';
+ mapFallbackTimer=setTimeout(()=>{if(!mapStartupReady)failMapStartup('Map services did not respond. Check your internet connection and reload this page.')},12000);
+ try{map.setStyle(RASTER_FALLBACK_STYLE)}catch(error){failMapStartup('Could not start the backup map. Check your connection and reload this page.')}
+},14000);
+
 let selectedSearchArea=null;
 let searchTimer=null,searchController=null,searchRequestId=0;
 let areaTimer=null,areaController=null,areaRequestId=0;
@@ -523,29 +546,6 @@ $('#use-current-location').addEventListener('click',()=>locate(true));$('#locate
 $('#reset-view').addEventListener('click',()=>{map.flyTo({center:START.center,zoom:START.zoom,bearing:0,pitch:0,speed:1.15});clearMarkers(searchMarkers);clearMarkers(routeMarkers);latestRoute=null;HarshMaps.clearRoute(map);labelView('Mumbai, India');status('Map view reset')});
 $('#mobile-menu').addEventListener('click',()=>{const open=$('#control-panel').classList.toggle('open');$('#mobile-menu').setAttribute('aria-expanded',String(open))});
 $('#copy-snippet').addEventListener('click',async()=>{const snippet='<div id="map" style="height:420px"></div>\n<script type="module">\n  import * as ml from "https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.mjs";\n  import { HarshMaps } from "https://cdn.jsdelivr.net/gh/harshyadavv2456/HarshMaps@main/sdk/harshmaps.js";\n  HarshMaps.createMap(ml, "map", { style: HarshMaps.styles.liberty });\n</script>';try{await navigator.clipboard.writeText(snippet);$('#copy-snippet').textContent='Copied ✓';setTimeout(()=>$('#copy-snippet').textContent='Copy snippet ⧉',1800)}catch{toast('Clipboard blocked. Copy the snippet from the code panel.')}});
-let mapStartupReady=false,rasterFallbackActive=false,mapControlsAdded=false,mapStartupTimer=null,mapFallbackTimer=null;
-function finishMapStartup(useFallback=false){
- if(mapStartupReady)return;
- mapStartupReady=true;clearTimeout(mapStartupTimer);clearTimeout(mapFallbackTimer);
- $('#map-loader').classList.add('hidden');status(useFallback?'Backup raster map active · OpenStreetMap tiles':'Connected · OpenFreeMap vector tiles',useFallback);updateZoom();
- if(!mapControlsAdded){map.addControl(new maplibregl.GeolocateControl({positionOptions:{enableHighAccuracy:true},trackUserLocation:false,showUserHeading:true}),'top-right');mapControlsAdded=true}
- refreshPlacesLayer();
-}
-function failMapStartup(message){
- const loader=$('#map-loader');loader.classList.remove('hidden');loader.classList.add('failed');loader.textContent=message;status('Map services unavailable',true);
-}
-map.on('load',()=>{if(!rasterFallbackActive)finishMapStartup(false);else if(map.getStyle()?.sources?.['osm-raster'])finishMapStartup(true)});
-map.on('style.load',()=>{if(rasterFallbackActive&&!mapStartupReady&&map.getStyle()?.sources?.['osm-raster'])finishMapStartup(true)});
-map.on('zoom',updateZoom);
-map.on('error',e=>{if(!mapStartupReady&&e&&e.error)status('Map service is slow or unavailable · trying recovery…',true)});
-mapStartupTimer=setTimeout(()=>{
- if(mapStartupReady||rasterFallbackActive)return;
- rasterFallbackActive=true;status('Vector map is not responding · trying a backup basemap',true);
- const loader=$('#map-loader');loader.classList.remove('hidden');loader.classList.remove('failed');loader.textContent='Vector tiles unavailable · switching to backup map…';
- mapFallbackTimer=setTimeout(()=>{if(!mapStartupReady)failMapStartup('Map services did not respond. Check your internet connection and reload this page.')},12000);
- try{map.setStyle(RASTER_FALLBACK_STYLE)}catch(error){failMapStartup('Could not start the backup map. Check your connection and reload this page.')}
-},14000);
-
 // Universal integration builder: generate copy/paste iframe or a direct browser SDK example.
 const embedOptionsForm = $('#embed-options');
 if (embedOptionsForm) {
