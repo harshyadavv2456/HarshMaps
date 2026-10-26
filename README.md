@@ -22,7 +22,7 @@ HarshMaps is an open mapping toolkit built on [MapLibre GL JS](https://maplibre.
 | Vector map rendering | MapLibre GL JS | No | Open-source WebGL renderer |
 | Hosted vector tiles/styles | OpenFreeMap | No | Free public service; availability is not guaranteed |
 | Global places overlay | Overture Maps Places PMTiles | No | Experimental public inspection tiles; source releases are monthly |
-| Place/address search | Photon public demo | No | Best-effort, reasonable use only |
+| Place/address search | Photon + OpenStreetMap nearby search + submit-only Nominatim fallback | No | Ranked, location-biased results; public services are best-effort |
 | Driving, walking and cycling | OpenStreetMap FOSSGIS/OSRM demo profiles | No | Light-use public demos; best-effort, no SLA |
 | Geolocation | Browser Geolocation API | No | User permission required |
 | Custom styles | MapLibre style JSON | Depends on provider | Switch styles or host your own |
