@@ -41,5 +41,5 @@ test('the served homepage contains the autocomplete dropdown and correct cache v
   const html = await readFile(indexPath, 'utf8');
   assert.match(html, /id="search-suggestions"/);
   assert.match(html, /aria-controls="search-suggestions"/);
-  assert.ok(html.includes('app.js?v=20261026-8'));
+  assert.ok(html.includes('app.js?v=20261026-9'));
 });
