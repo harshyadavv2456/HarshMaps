@@ -141,10 +141,25 @@ function waitForMapIdle(timeoutMs=7000){
    timer=setTimeout(finish,timeoutMs);
  });
 }
-async function showNearbyCategoryResults(category){
+function requestDeviceCoordinates(){
+ return new Promise((resolve,reject)=>{
+   if(!navigator.geolocation){reject(new Error('Geolocation is not supported'));return}
+   navigator.geolocation.getCurrentPosition(
+     position=>resolve([position.coords.longitude,position.coords.latitude]),
+     error=>reject(error||new Error('Could not get device location')),
+     {enableHighAccuracy:false,timeout:10000,maximumAge:60000}
+   );
+ });
+}
+async function showNearbyCategoryResults(category,options={}){
  const area=selectedSearchArea&&Array.isArray(selectedSearchArea.coordinates)?selectedSearchArea:null;
  const current=map.getCenter();
- const center=area?area.coordinates:[current.lng,current.lat];
+ let center=area?area.coordinates:[current.lng,current.lat];
+ let locationMessage='';
+ if(!area&&options.useDeviceLocation){
+   try{center=await requestDeviceCoordinates()}
+   catch{locationMessage='Device location was unavailable; results use the current map view instead.'}
+ }
  const targetZoom=Math.max(14.5,map.getZoom());
  placesEnabled=true;
  placesCategory=category.id;
@@ -152,7 +167,7 @@ async function showNearbyCategoryResults(category){
  $('#places-category').value=category.id;
  setOverturePlaceCategory(map,category.id);
  setOverturePlacesVisible(map,true);
- labelView(category.title+(area?' · '+(area.name||area.label):' nearby'),
+ labelView(category.title+(area?' · '+(area.name||area.label):options.useDeviceLocation&&!locationMessage?' near you':' nearby'),
    'NEARBY PLACES · STRAIGHT-LINE DISTANCE');
  status('Finding labeled '+category.title.toLowerCase()+'…');
  const box=$('#search-results');
@@ -180,7 +195,10 @@ async function showNearbyCategoryResults(category){
    explanation.className='nearby-results-note';
    explanation.textContent=area
      ?'Labeled places visible around '+(area.name||area.label)+', closest first.'
-     :'Labeled places visible around the current map view, closest first.';
+     :options.useDeviceLocation&&!locationMessage
+       ?'Labeled places visible around your device location, closest first.'
+       :'Labeled places visible around the current map view, closest first.';
+   if(locationMessage){const locationNote=document.createElement('p');locationNote.className='nearby-results-note';locationNote.textContent=locationMessage;panel.append(locationNote)}
    panel.append(explanation);
    if(!results.length){
      const empty=document.createElement('div');
@@ -253,7 +271,7 @@ async function showNearbyCategoryResults(category){
    status('Nearby place lookup unavailable',true);
  }
 }
-function showCategoryBrowseAction(category){
+function showCategoryBrowseAction(category,query=''){
  if(!category)return;
  const box=$('#search-results');
  const card=document.createElement('div');card.className='browse-category-card';
@@ -262,11 +280,13 @@ function showCategoryBrowseAction(category){
  const title=document.createElement('strong');title.textContent='Browse '+category.title;
  const details=document.createElement('small');details.textContent=selectedSearchArea
    ?'Show mapped '+category.title.toLowerCase()+' near '+(selectedSearchArea.name||selectedSearchArea.label)+'.'
-   :'Show mapped '+category.title.toLowerCase()+' near the current map view. Add Search In to focus another city.';
+   :/\b(?:near me|nearby|around me)\b/i.test(query)
+     ?'Use your device location to find labeled '+category.title.toLowerCase()+' nearby.'
+     :'Show mapped '+category.title.toLowerCase()+' near the current map view. Add Search In to focus another city.';
  text.append(title,details);
  const action=document.createElement('button');action.type='button';action.className='browse-category-action';action.textContent='Show on map →';
  action.addEventListener('click',async()=>{
-   await showNearbyCategoryResults(category);
+   await showNearbyCategoryResults(category,{useDeviceLocation:!selectedSearchArea&&/\b(?:near me|nearby|around me)\b/i.test(query)});
  });
  card.append(icon,text,action);box.prepend(card);
 }
@@ -398,14 +418,14 @@ async function search(query,options={}){
    const places=await HarshMaps.searchPlaces(queryText,{baseUrl:HarshMaps.providers.photon,limit:10,lat:bias[1],lon:bias[0],zoom:area?12:map.getZoom(),locationBiasScale:area?0.65:0.15,bbox:useAreaExtent?area.extent:undefined,signal:searchController.signal});
    if(requestId!==searchRequestId)return;
    showResults(places,{message:places.length?'':selectedSearchArea?'No matches in or around '+(selectedSearchArea.name||selectedSearchArea.label)+'. Try another spelling or clear Search In.':'No matching names found. Try another spelling or add a city in Search In.'});
-   const category=detectPlaceCategory(q);if(category)showCategoryBrowseAction(category);
+   const category=detectPlaceCategory(q);if(category)showCategoryBrowseAction(category,q);
    if(!places.length){status(category?'No named matches · browse the category on the map':'No matching places');return}
    status(places.length+' match'+(places.length===1?'':'es')+' · select a result');
  }catch(error){
    if(error&&error.name==='AbortError')return;
    if(requestId!==searchRequestId)return;
    showResults([],{message:'The public place-search service is unavailable right now. Please try again.'});
-   const category=detectPlaceCategory(q);if(category)showCategoryBrowseAction(category);
+   const category=detectPlaceCategory(q);if(category)showCategoryBrowseAction(category,q);
    status('Search provider unavailable',true);
  }
 }
