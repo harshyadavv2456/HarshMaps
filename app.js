@@ -1,7 +1,8 @@
 import { HarshMaps } from './sdk/harshmaps.js';
 import { formatDistance, rankNearbyPlaces } from './sdk/nearby.js';
 import { detectPlaceCategory, extractCategoryLocation } from './sdk/search-intent.js';
-import { inferPlaceCategory, searchPlacesResilient } from './sdk/search-provider.js?v=20261026-6';
+import { inferPlaceCategory, searchPlacesResilient } from './sdk/search-provider.js?v=20261026-7';
+import { understandMapQuery, isLocalAIEnabled, enableLocalAI, disableLocalAI, interpretWithLocalModel, getLocalAIStatus } from './sdk/local-ai-search.js?v=20261026-1';
 import { addOverturePlaces, bindOverturePlacePopups, validOvertureRelease, setOverturePlaceCategory, setOverturePlacesVisible } from './sdk/places-layer.js';
 
 function withImportTimeout(promise, milliseconds, label) {
@@ -559,10 +560,33 @@ function renderSearchSuggestions(places,query,options={}){
  box.append(footer);
 }
 
+
+function updateQueryUnderstanding(intent,modelUsed=false){
+ const panel=$('#query-understanding');
+ if(!panel||!intent)return;
+ panel.replaceChildren();
+ const lead=document.createElement('span');lead.className='query-understanding-icon';lead.textContent=modelUsed?'✦':'⌕';
+ const copy=document.createElement('span');copy.className='query-understanding-copy';
+ const title=document.createElement('strong');title.textContent=modelUsed?'On-device AI understood':'Search understood';
+ const phrase=document.createElement('small');phrase.textContent=intent.searchQuery||intent.original||'';
+ copy.append(title,phrase);
+ if(Array.isArray(intent.preferences)&&intent.preferences.length){
+   const detail=document.createElement('small');detail.className='query-understanding-preferences';
+   detail.textContent='Preferences detected: '+intent.preferences.map(value=>value.replace(/_/g,' ')).join(' · ');
+   copy.append(detail);
+ }
+ const marker=document.createElement('span');marker.className='query-understanding-mode';marker.textContent=modelUsed?'LOCAL MODEL':'LOCAL';
+ panel.append(lead,copy,marker);panel.hidden=false;
+}
+
 async function search(query,options={}){
  const q=String(query||'').trim();
- if(q.length<2){if(!options.live)toast('Enter at least two characters to search.');hideSearchSuggestions();return}
+ if(q.length<2){if(!options.live)toast('Enter at least two characters to search.');hideSearchSuggestions();$('#query-understanding').hidden=true;return}
+ const initialUnderstanding=understandMapQuery(q);
+ let activeUnderstanding=initialUnderstanding;
+ let searchQuery=initialUnderstanding.searchQuery||q;
  $('#place-query').value=q;
+ updateQueryUnderstanding(initialUnderstanding,false);
  lastSearchMode=options.live?'live':'submit';
  if(searchController)searchController.abort();
  searchController=new AbortController();
@@ -581,7 +605,16 @@ async function search(query,options={}){
  }
  status(options.live?'Finding relevant suggestions…':'Searching places…');
  try{
-   const result=await resilientSearchPlaces(q,{
+   if(!options.live&&isLocalAIEnabled()){
+     status('Interpreting your request on this device…');
+     try{
+       activeUnderstanding=await interpretWithLocalModel(q);
+       if(requestId!==searchRequestId)return;
+       searchQuery=activeUnderstanding.searchQuery||searchQuery;
+       updateQueryUnderstanding(activeUnderstanding,activeUnderstanding.source==='on-device-model');
+     }catch(modelError){console.warn('[HarshMaps] On-device interpretation fell back to local rules',modelError)}
+   }
+   const result=await resilientSearchPlaces(searchQuery,{
      live:Boolean(options.live),
      allowNominatimFallback:!options.live,
      signal:searchController.signal,
@@ -593,7 +626,7 @@ async function search(query,options={}){
      setSearchArea(result.locationResolution);
      map.flyTo({center:result.locationResolution.coordinates,zoom:12,speed:1.0,essential:true});
    }
-   const category=inferPlaceCategory(q)||detectPlaceCategory(q);
+   const category=inferPlaceCategory(searchQuery)||detectPlaceCategory(searchQuery)||activeUnderstanding.category;
    if(options.live){
      renderSearchSuggestions(places,q,{failed:!places.length&&Boolean(result.errors?.length)});
      status(places.length
@@ -608,7 +641,7 @@ async function search(query,options={}){
        :selectedSearchArea?'No matches around '+(selectedSearchArea.name||selectedSearchArea.label)+'. Try another spelling or clear Search In.'
        :'No matching places found. Try a brand plus a city, such as “SBI in Nagpur”.'
    });
-   if(category)showCategoryBrowseAction(category,q);
+   if(category&&['banks','food','shopping','health','education','lodging','landmarks','services'].includes(category.id))showCategoryBrowseAction(category,searchQuery);
    if(!places.length){
      const details=(result.errors||[]).slice(0,2).join(' · ').slice(0,150);
      status(result.errors?.length
@@ -689,7 +722,32 @@ document.addEventListener('click',event=>{
  if(!event.target.closest('.search-area-wrap'))$('#location-suggestions').hidden=true;
  if(!event.target.closest('.search-autocomplete-wrap'))hideSearchSuggestions();
 });
-$$('[data-query]').forEach(b=>b.addEventListener('click',()=>jumpToCity(b.dataset.query)));
+$('[data-query]').forEach(b=>b.addEventListener('click',()=>jumpToCity(b.dataset.query)));
+$('[data-map-query]').forEach(b=>b.addEventListener('click',()=>{const q=b.dataset.mapQuery;$('#place-query').value=q;hideSearchSuggestions();void search(q,{live:false})}));
+const localAIButton=$('#enable-local-ai');
+function renderLocalAIButton(){
+ if(!localAIButton)return;
+ const state=getLocalAIStatus();
+ localAIButton.disabled=state.loading;
+ localAIButton.setAttribute('aria-pressed',String(state.enabled));
+ localAIButton.classList.toggle('enabled',state.enabled);
+ localAIButton.textContent=state.loading?'Loading local model…':state.enabled?'✦ On-device AI enabled · Turn off':'✦ Enable on-device AI · one-time download';
+ const statusNode=$('#local-ai-status');
+ if(statusNode)statusNode.textContent=state.loading?'Downloading and preparing the local model. Search without it still works.':state.enabled?'Local model is ready. Submitted searches can be rewritten on-device; map results still come from live open map data.':state.error?'Local model unavailable. Rule-based query understanding stays active.':'Instant local search understanding is always active. Optional 135M-parameter model; no hosted AI inference or API key.';
+}
+if(localAIButton)localAIButton.addEventListener('click',async()=>{
+ if(isLocalAIEnabled()){disableLocalAI();renderLocalAIButton();toast('On-device AI turned off. Local query understanding remains active.');return}
+ localAIButton.disabled=true;localAIButton.textContent='Loading local model…';
+ const statusNode=$('#local-ai-status');if(statusNode)statusNode.textContent='Downloading a small quantized model to this browser. The first load can take a while; no hosted AI API is used.';
+ try{
+   await enableLocalAI(info=>{
+     if(info&&Number.isFinite(Number(info.progress))){localAIButton.textContent='Loading local model · '+Math.max(0,Math.min(100,Math.round(Number(info.progress))))+'%';if(statusNode)statusNode.textContent='Downloading model files… this is a one-time browser download when caching is available.'}
+     else if(info&&info.status==='fallback'&&statusNode)statusNode.textContent='GPU unavailable; retrying local inference on CPU.';
+   });
+   renderLocalAIButton();toast('On-device AI is ready. Ask in everyday language.');
+ }catch(error){console.warn('[HarshMaps] Local AI could not load',error);renderLocalAIButton();toast('Local AI could not load. Normal search still works without it.');}
+});
+renderLocalAIButton();
 $$('.tab').forEach(tab=>tab.addEventListener('click',()=>{$$('.tab').forEach(t=>{const yes=t===tab;t.classList.toggle('active',yes);t.setAttribute('aria-selected',String(yes))});$$('.tool-panel').forEach(p=>{const yes=p.id===tab.dataset.panel;p.classList.toggle('active',yes);p.hidden=!yes})}));
 $$('[data-style]').forEach(b=>b.addEventListener('click',()=>{const name=b.dataset.style;if(!STYLES[name]||name===activeStyle)return;activeStyle=name;$$('.style-choice').forEach(t=>t.classList.toggle('active',t===b));setStatusLabel('Loading '+name+' style…');map.setStyle(STYLES[name]);map.once('style.load',()=>{status(name[0].toUpperCase()+name.slice(1)+' style active');if(latestRoute)HarshMaps.drawRoute(map,latestRoute.feature,latestRoute.options);if(is3D)HarshMaps.set3D(map,true);if(placesEnabled)refreshPlacesLayer()})}));
 function setStatusLabel(s){status(s)}
