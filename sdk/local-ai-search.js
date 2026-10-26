@@ -1,4 +1,4 @@
-const MODEL_ID = 'onnx-community/SmolLM2-135M-Instruct-ONNX-GQA';
+const MODEL_ID = 'onnx-community/SmolLM2-135M-Instruct-ONNX-MHA';
 const RUNTIME_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
 
 const RULES = [
