@@ -11,14 +11,14 @@ export const OVERTURE_PLACES_ATTRIBUTION = '© <a href="https://overturemaps.org
 
 export const PLACE_CATEGORY_GROUPS = Object.freeze({
   all: null,
-  food: ['restaurant', 'fast_food', 'cafe', 'bar', 'pub', 'bakery', 'ice_cream_shop', 'food_and_drink'],
-  shopping: ['shopping', 'supermarket', 'convenience_store', 'grocery_store', 'clothing_store', 'department_store', 'shopping_mall'],
-  health: ['hospital', 'clinic', 'doctor', 'dentist', 'pharmacy', 'healthcare', 'medical_center'],
-  education: ['school', 'university', 'college', 'kindergarten', 'education'],
-  banks: ['bank', 'atm', 'financial_service', 'money_transfer'],
-  lodging: ['accommodation', 'hotel', 'motel', 'hostel', 'guest_house'],
-  landmarks: ['landmark_and_historical_building', 'monument', 'museum', 'park', 'attraction', 'place_of_worship', 'religious_organization', 'tourist_attraction'],
-  services: ['professional_services', 'government_office', 'post_office', 'gas_station', 'fuel', 'automotive', 'beauty_salon']
+  food: ['restaurant', 'fast_food', 'cafe', 'bar', 'pub', 'bakery', 'ice_cream_shop', 'food_and_drink', 'casual_eatery', 'quick_service_restaurant', 'coffee_shop', 'food_court', 'dessert_shop', 'food_market'],
+  shopping: ['shopping', 'supermarket', 'convenience_store', 'grocery_store', 'clothing_store', 'department_store', 'shopping_mall', 'general_store', 'retail_store', 'shopping_center', 'specialty_store'],
+  health: ['hospital', 'clinic', 'doctor', 'dentist', 'pharmacy', 'healthcare', 'medical_center', 'medical_clinic', 'urgent_care', 'optometrist', 'veterinary_clinic'],
+  education: ['school', 'university', 'college', 'kindergarten', 'education', 'daycare'],
+  banks: ['bank', 'atm', 'financial_service', 'money_transfer', 'credit_union', 'financial_institution', 'cash_machine'],
+  lodging: ['accommodation', 'hotel', 'motel', 'hostel', 'guest_house', 'bed_and_breakfast', 'resort'],
+  landmarks: ['landmark_and_historical_building', 'monument', 'museum', 'park', 'attraction', 'place_of_worship', 'religious_organization', 'tourist_attraction', 'historical_site', 'cultural_site', 'archaeological_site', 'national_park', 'nature_reserve', 'memorial', 'temple', 'church', 'mosque'],
+  services: ['professional_services', 'government_office', 'post_office', 'gas_station', 'fuel', 'automotive', 'beauty_salon', 'administrative_office', 'mechanic', 'auto_repair', 'public_service', 'police_station', 'fire_station', 'transit_station']
 });
 
 export function validOvertureRelease(value) {
@@ -61,13 +61,14 @@ export function addOverturePlaces(map, release, options = {}) {
       minzoom: 4,
       paint: {
         'circle-color': [
-          'match', ['get', '@category'],
+          'match', ['coalesce', ['get', 'basic_category'], ['get', '@category'], ['get', 'primary_category'], ['get', 'category']],
           ['restaurant', 'fast_food', 'cafe', 'bar', 'pub', 'bakery'], '#f08a58',
           ['shopping', 'supermarket', 'convenience_store', 'grocery_store', 'clothing_store'], '#be73ee',
           ['hospital', 'clinic', 'doctor', 'dentist', 'pharmacy', 'medical_center'], '#e56d86',
           ['school', 'university', 'college', 'kindergarten'], '#4d91d3',
           ['accommodation', 'hotel', 'motel', 'hostel'], '#44a989',
-          ['landmark_and_historical_building', 'monument', 'museum', 'attraction', 'tourist_attraction'], '#d7a63d',
+          ['landmark_and_historical_building', 'monument', 'museum', 'attraction', 'tourist_attraction', 'historical_site', 'cultural_site', 'memorial'], '#d7a63d',
+          ['bank', 'atm', 'financial_service', 'financial_institution', 'credit_union'], '#3e8cc7',
           '#685cf0'
         ],
         'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 1.6, 8, 2.6, 12, 4.2, 16, 6.5],
@@ -109,7 +110,8 @@ export function addOverturePlaces(map, release, options = {}) {
 export function setOverturePlaceCategory(map, category = 'all', options = {}) {
   const ids = [options.dotsId || OVERTURE_PLACES_DOTS_ID, options.labelsId || OVERTURE_PLACES_LABELS_ID];
   const group = PLACE_CATEGORY_GROUPS[category] === undefined ? null : PLACE_CATEGORY_GROUPS[category];
-  const filter = group ? ['in', ['get', '@category'], ['literal', group]] : null;
+  const categoryValue = ['coalesce', ['get', 'basic_category'], ['get', '@category'], ['get', 'primary_category'], ['get', 'category']];
+  const filter = group ? ['in', categoryValue, ['literal', group]] : null;
   ids.forEach((id) => {
     if (!map.getLayer(id)) return;
     if (filter) map.setFilter(id, filter);
@@ -134,7 +136,14 @@ export function bindOverturePlacePopups(map, maplibregl, options = {}) {
     if (!feature) return;
     const p = feature.properties || {};
     const name = p['@name'] || p.name || 'Unnamed place';
-    const category = String(p['@category'] || 'place').replace(/_/g, ' ');
+    let categoryValue = p.basic_category || p['@category'] || p.primary_category || p.category || '';
+    if (!categoryValue && p.taxonomy) {
+      try {
+        const taxonomy = typeof p.taxonomy === 'string' ? JSON.parse(p.taxonomy) : p.taxonomy;
+        categoryValue = taxonomy && (taxonomy.primary || (Array.isArray(taxonomy.hierarchy) && taxonomy.hierarchy[taxonomy.hierarchy.length - 1])) || '';
+      } catch { /* Public tiles can omit or change taxonomy metadata. */ }
+    }
+    const category = String(categoryValue || 'place').replace(/_/g, ' ');
     const wrap = document.createElement('div');
     const heading = document.createElement('strong');
     heading.textContent = String(name);
