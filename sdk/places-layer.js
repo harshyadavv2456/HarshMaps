@@ -15,9 +15,10 @@ export const PLACE_CATEGORY_GROUPS = Object.freeze({
   shopping: ['shopping', 'supermarket', 'convenience_store', 'grocery_store', 'clothing_store', 'department_store', 'shopping_mall'],
   health: ['hospital', 'clinic', 'doctor', 'dentist', 'pharmacy', 'healthcare', 'medical_center'],
   education: ['school', 'university', 'college', 'kindergarten', 'education'],
+  banks: ['bank', 'atm', 'financial_service', 'money_transfer'],
   lodging: ['accommodation', 'hotel', 'motel', 'hostel', 'guest_house'],
   landmarks: ['landmark_and_historical_building', 'monument', 'museum', 'park', 'attraction', 'place_of_worship', 'religious_organization', 'tourist_attraction'],
-  services: ['professional_services', 'bank', 'atm', 'government_office', 'post_office', 'gas_station', 'automotive', 'beauty_salon']
+  services: ['professional_services', 'government_office', 'post_office', 'gas_station', 'fuel', 'automotive', 'beauty_salon']
 });
 
 export function validOvertureRelease(value) {
