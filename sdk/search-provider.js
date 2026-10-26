@@ -42,7 +42,7 @@ const CATEGORY_TAGS = Object.freeze({
   ],
   education: [
     ['amenity', 'school'], ['amenity', 'college'], ['amenity', 'university'],
-    ['amenity', 'kindergarten']
+    ['amenity', 'kindergarten'], ['amenity', 'library']
   ],
   lodging: [
     ['tourism', 'hotel'], ['tourism', 'hostel'], ['tourism', 'guest_house'],
@@ -54,7 +54,22 @@ const CATEGORY_TAGS = Object.freeze({
   ],
   services: [
     ['amenity', 'fuel'], ['amenity', 'post_office'], ['amenity', 'police'],
-    ['amenity', 'fire_station'], ['amenity', 'government']
+    ['amenity', 'fire_station'], ['amenity', 'government'], ['amenity', 'toilets'],
+    ['amenity', 'charging_station']
+  ],
+  transport: [
+    ['amenity', 'bus_station'], ['amenity', 'fuel'], ['amenity', 'charging_station'],
+    ['railway', 'station'], ['railway', 'halt'], ['aeroway', 'aerodrome']
+  ],
+  fitness: [
+    ['leisure', 'fitness_centre'], ['leisure', 'sports_centre'], ['leisure', 'swimming_pool'],
+    ['leisure', 'stadium']
+  ],
+  outdoors: [
+    ['leisure', 'park'], ['leisure', 'garden'], ['leisure', 'playground'], ['leisure', 'nature_reserve']
+  ],
+  personal: [
+    ['shop', 'hairdresser'], ['shop', 'beauty'], ['shop', 'laundry'], ['shop', 'dry_cleaning']
   ]
 });
 
@@ -66,7 +81,11 @@ const CATEGORY_WORDS = Object.freeze({
   education: /\b(?:school|schools|college|colleges|university|universities)\b/i,
   lodging: /\b(?:hotel|hotels|hostel|hostels|motel|motels)\b/i,
   landmarks: /\b(?:monument|monuments|museum|museums|landmark|landmarks|attraction|attractions|temple|temples|church|churches|mosque|mosques|park|parks)\b/i,
-  services: /\b(?:gas station|petrol pump|post office|government office|police station|fire station)\b/i
+  services: /\b(?:gas station|petrol pump|post office|government office|police station|fire station|public toilet|restroom)\b/i,
+  transport: /\b(?:airport|railway station|train station|metro station|bus station|bus stand|bus stop|ev charging|charging station)\b/i,
+  fitness: /\b(?:gym|fitness centre|fitness center|yoga studio|swimming pool|sports complex|stadium)\b/i,
+  outdoors: /\b(?:park|parks|garden|gardens|playground|playgrounds|nature reserve|walking trail|hiking trail)\b/i,
+  personal: /\b(?:salon|barber|barbershop|laundromat|laundry|dry cleaner|tailor)\b/i
 });
 
 function validCenter(center) {
