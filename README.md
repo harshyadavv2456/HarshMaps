@@ -8,7 +8,8 @@ HarshMaps is an open mapping toolkit built on [MapLibre GL JS](https://maplibre.
 
 ## Try it
 
-- Live site after Pages deployment: https://harshyadavv2456.github.io/HarshMaps/
+- Live site: https://harshyadavv2456.github.io/HarshMaps/
+- [Worldwide Places layer and 15-minute release checker](docs/PROVIDERS.md#worldwide-places-layer--overture-maps)
 - Repository: https://github.com/harshyadavv2456/HarshMaps
 - [Free Integration Studio: iframe, website and mobile WebView](docs/FREE_INTEGRATION.md)
 - [Integration guide](docs/INTEGRATION.md)
@@ -19,7 +20,8 @@ HarshMaps is an open mapping toolkit built on [MapLibre GL JS](https://maplibre.
 | Capability | Default | API key | Notes |
 |---|---|---:|---|
 | Vector map rendering | MapLibre GL JS | No | Open-source WebGL renderer |
-| Hosted vector tiles/styles | OpenFreeMap | No | Free public service, no published view cap, no SLA |
+| Hosted vector tiles/styles | OpenFreeMap | No | Free public service; availability is not guaranteed |
+| Global places overlay | Overture Maps Places PMTiles | No | Experimental public inspection tiles; source releases are monthly |
 | Place/address search | Photon public demo | No | Best-effort, reasonable use only |
 | Driving route preview | OSRM demo server | No | Best-effort, no SLA |
 | Geolocation | Browser Geolocation API | No | User permission required |
@@ -46,13 +48,15 @@ For the no-build route, use the Free Integration Studio on the homepage to gener
 ## Included
 
 - Free Integration Studio that generates configurable iframe and browser SDK snippets
-- Standalone embed page for websites and mobile WebViews, with optional search, location and a marker
+- Standalone embed page for websites and mobile WebViews, with search, location, marker and global places overlay
 - Responsive map explorer UI
 - Five switchable hosted vector-map styles
 - Manual place search (not a request per keystroke)
 - Browser geolocation
 - Driving route preview with distance and duration estimates
 - Route and marker helpers
+- Worldwide places overlay with category filters and point popups
+- A GitHub Actions release checker that polls Overture STAC every 15 minutes and republishes only when the upstream release changes
 - Configurable map, geocoder, and routing endpoints
 - TypeScript declarations
 - GitHub Pages deployment workflow and vanilla HTML example
@@ -73,6 +77,6 @@ The workflow at .github/workflows/pages.yml publishes the site whenever the main
 
 ## Attribution and licenses
 
-The demo uses OpenFreeMap styles and OpenStreetMap-derived data. Keep attribution visible. OpenStreetMap data is available under the ODbL; read the [OpenStreetMap copyright page](https://www.openstreetmap.org/copyright) and provider terms before production use.
+The demo uses OpenFreeMap styles, OpenStreetMap-derived map data, and an experimental Overture global places overlay. The 15-minute workflow checks only for a newly published Overture release; Overture's source dataset is updated on a monthly cadence, not every 15 minutes. Keep attribution visible. OpenStreetMap data is available under the ODbL; read the [OpenStreetMap copyright page](https://www.openstreetmap.org/copyright) and provider terms before production use.
 
 The MIT license in this repository applies to HarshMaps source code only. Map data, tiles, and third-party services remain under their own licenses and terms. See [LICENSE](LICENSE).
