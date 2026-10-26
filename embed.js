@@ -1,4 +1,5 @@
 import { HarshMaps } from './sdk/harshmaps.js';
+import { searchPlacesResilient } from './sdk/search-provider.js';
 import { addOverturePlaces, bindOverturePlacePopups, validOvertureRelease, setOverturePlacesVisible } from './sdk/places-layer.js';
 
 function withImportTimeout(promise, milliseconds, label) {
@@ -187,24 +188,43 @@ $('#embed-search').addEventListener('submit', async (event) => {
     setStatus('Enter at least two characters to search.');
     return;
   }
-  setStatus('Searching places…');
+  setStatus('Searching places and nearby businesses…');
+  const center = map.getCenter();
   try {
-    const position = map.getCenter();
-    const places = await HarshMaps.searchPlaces(query, {
-      baseUrl: HarshMaps.providers.photon,
-      limit: 5, lat: position.lat, lon: position.lng
+    const result = await searchPlacesResilient(query, {
+      center: [center.lng, center.lat],
+      live: false,
+      allowNominatimFallback: true,
+      includeNearby: true,
+      limit: 10,
+      countryCode: 'in',
+      photonSearch: (text, requestOptions) => HarshMaps.searchPlaces(text, {
+        baseUrl: HarshMaps.providers.photon,
+        limit: requestOptions.limit,
+        lat: requestOptions.center?.[1],
+        lon: requestOptions.center?.[0],
+        zoom: map.getZoom(),
+        locationBiasScale: 0.4,
+        signal: requestOptions.signal
+      })
     });
+    const places = result.places || [];
     if (!places.length) {
-      setStatus('No results found. Try a different place name.');
+      setStatus(result.errors?.length
+        ? 'Search providers did not respond. Try a fuller place name or retry in a moment.'
+        : 'No results found. Try a business name with a city.');
       return;
     }
     clearSearchMarkers();
-    places.forEach((place) => placeMarker(place));
+    places.slice(0, 8).forEach((place) => placeMarker(place));
     const best = places[0];
-    map.flyTo({ center: best.coordinates, zoom: 14, speed: 1.1, essential: true });
-    setStatus(best.label || best.name || 'Place found');
+    map.flyTo({ center: best.coordinates, zoom: 15, speed: 1.1, essential: true });
+    setStatus((best.recommendationBadge || 'Recommended') + ': ' + (best.label || best.name) +
+      (Number.isFinite(best.distanceMeters) ? ' · ' + Math.round(best.distanceMeters) + ' m away' : '') +
+      (result.provider ? ' · ' + result.provider : ''));
   } catch (error) {
-    setStatus(error && error.message ? error.message : 'Search service unavailable. Try again later.');
+    if (error && error.name === 'AbortError') return;
+    setStatus('Search failed across available providers. Check the connection and retry.');
   }
 });
 
