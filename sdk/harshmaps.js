@@ -56,7 +56,7 @@ export const HarshMaps=Object.freeze({
          id:p.osm_id?String(p.osm_type||'osm')+':'+p.osm_id:coords.join(','),
          name,label,coordinates:coords,city,state:p.state||'',country:p.country||'',
          postcode:p.postcode||'',district:p.district||'',street:p.street||'',
-         category:String(category),layer:p.layer||'',extent:Array.isArray(p.extent)?p.extent:null,
+         category:String(category),layer:p.layer||'',extent:Array.isArray(p.extent)&&p.extent.length===4&&p.extent.every(Number.isFinite)?[Number(p.extent[0]),Math.min(Number(p.extent[1]),Number(p.extent[3])),Number(p.extent[2]),Math.max(Number(p.extent[1]),Number(p.extent[3]))]:null,
          properties:p
        };
      });
