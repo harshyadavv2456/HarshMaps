@@ -40,7 +40,7 @@ test('nearby ranking sorts by distance and collapses duplicated tile features', 
   const features = [
     { id: 'far', properties: { name: 'Far Clinic', basic_category: 'clinic' }, geometry: { coordinates: [79.2, 21.14] } },
     { id: 'near', properties: { name: 'Near Clinic', basic_category: 'clinic' }, geometry: { coordinates: [79.081, 21.14] } },
-    { id: 'duplicate', properties: { name: 'Near Clinic', basic_category: 'clinic' }, geometry: { coordinates: [79.0811, 21.1401] } },
+    { id: 'duplicate', properties: { name: 'Near Clinic', basic_category: 'clinic' }, geometry: { coordinates: [79.08102, 21.14001] } },
     { id: 'unnamed', properties: { basic_category: 'clinic' }, geometry: { coordinates: [79.08, 21.14] } }
   ];
   const results = rankNearbyPlaces(features, [79.08, 21.14]);
