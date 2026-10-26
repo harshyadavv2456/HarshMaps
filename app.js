@@ -31,6 +31,52 @@ function placeContext(place){
  const parts=[place.street,place.district,place.city,place.state,place.country].filter(Boolean);
  return parts.filter((v,i,a)=>a.findIndex(x=>String(x).toLowerCase()===String(v).toLowerCase())===i).join(', ');
 }
+const PLACE_CATEGORY_SEARCH=Object.freeze([
+ {id:'banks',title:'Banks & ATMs',terms:['bank','banks','atm','atms','cash machine','cash machines'],icon:'▤'},
+ {id:'food',title:'Food & drink',terms:['restaurant','restaurants','cafe','cafes','coffee shop','coffee shops','fast food','food'],icon:'♨'},
+ {id:'shopping',title:'Shops & retail',terms:['shop','shops','store','stores','shopping','supermarket','supermarkets','grocery','groceries'],icon:'◇'},
+ {id:'health',title:'Healthcare',terms:['hospital','hospitals','clinic','clinics','pharmacy','pharmacies','doctor','doctors','dentist','dentists'],icon:'+'},
+ {id:'education',title:'Schools & universities',terms:['school','schools','college','colleges','university','universities'],icon:'⌂'},
+ {id:'lodging',title:'Hotels & accommodation',terms:['hotel','hotels','hostel','hostels','motel','motels'],icon:'⌑'},
+ {id:'landmarks',title:'Landmarks & attractions',terms:['monument','monuments','museum','museums','landmark','landmarks','attraction','attractions','temple','temples','church','churches','mosque','mosques'],icon:'⌖'},
+ {id:'services',title:'Public services & fuel',terms:['gas station','gas stations','petrol pump','petrol pumps','post office','post offices','government office','government offices'],icon:'↗'}
+]);
+function detectPlaceCategory(query){
+ const normalized=String(query||'').toLowerCase().trim().replace(/[.,!?]/g,'').replace(/\s+/g,' ');
+ return PLACE_CATEGORY_SEARCH.find(item=>item.terms.includes(normalized))||null;
+}
+function showCategoryBrowseAction(category){
+ if(!category)return;
+ const box=$('#search-results');
+ const card=document.createElement('div');card.className='browse-category-card';
+ const icon=document.createElement('span');icon.className='browse-category-icon';icon.textContent=category.icon;
+ const text=document.createElement('span');text.className='browse-category-copy';
+ const title=document.createElement('strong');title.textContent='Browse '+category.title;
+ const details=document.createElement('small');details.textContent=selectedSearchArea
+   ?'Show mapped '+category.title.toLowerCase()+' near '+(selectedSearchArea.name||selectedSearchArea.label)+'.'
+   :'Show mapped '+category.title.toLowerCase()+' near the current map view. Add Search In to focus another city.';
+ text.append(title,details);
+ const action=document.createElement('button');action.type='button';action.className='browse-category-action';action.textContent='Show on map →';
+ action.addEventListener('click',()=>{
+   placesEnabled=true;placesCategory=category.id;
+   $('#toggle-places-layer').setAttribute('aria-pressed','true');
+   $('#places-category').value=category.id;
+   setOverturePlaceCategory(map,category.id);
+   setOverturePlacesVisible(map,true);
+   refreshPlacesLayer();
+   const tab=$('.tab').find(item=>item.dataset.panel==='places-panel');
+   if(tab)tab.click();
+   if(selectedSearchArea&&Array.isArray(selectedSearchArea.coordinates)){
+     map.flyTo({center:selectedSearchArea.coordinates,zoom:Math.max(13,map.getZoom()),speed:1.1,essential:true});
+     labelView(category.title+' · '+(selectedSearchArea.name||selectedSearchArea.label),'OPEN PLACES · '+(selectedSearchArea.country||'SELECTED AREA').toUpperCase());
+   }else{
+     if(map.getZoom()<12)map.flyTo({center:map.getCenter(),zoom:12,speed:1.1,essential:true});
+     labelView(category.title+' nearby','OPEN PLACES · CURRENT MAP AREA');
+   }
+   status('Browsing '+category.title.toLowerCase()+' on the map');
+ });
+ card.append(icon,text,action);box.prepend(card);
+}
 function showResults(places,options={}){
  const box=$('#search-results');box.replaceChildren();
  $('#result-count').textContent=options.busy?'…':String(places.length).padStart(2,'0');
@@ -139,7 +185,8 @@ async function search(query,options={}){
    const places=await HarshMaps.searchPlaces(queryText,{baseUrl:HarshMaps.providers.photon,limit:10,lat:bias[1],lon:bias[0],zoom:area?12:map.getZoom(),locationBiasScale:area?0.65:0.15,bbox:useAreaExtent?area.extent:undefined,signal:searchController.signal});
    if(requestId!==searchRequestId)return;
    showResults(places,{message:places.length?'':'No matches'});
-   if(!places.length){status('No matching places');return}
+   const category=detectPlaceCategory(q);if(category)showCategoryBrowseAction(category);
+   if(!places.length){status(category?'No named matches · browse the category on the map':'No matching places');return}
    status(places.length+' match'+(places.length===1?'':'es')+' · select a result');
  }catch(error){
    if(error&&error.name==='AbortError')return;
