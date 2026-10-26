@@ -1,9 +1,14 @@
 import * as maplibregl from 'https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.mjs';
 import { HarshMaps } from './sdk/harshmaps.js';
+import { Protocol } from 'https://cdn.jsdelivr.net/npm/pmtiles@4.5.0/+esm';
+import { addOverturePlaces, bindOverturePlacePopups, validOvertureRelease, setOverturePlaceCategory, setOverturePlacesVisible } from './sdk/places-layer.js';
+const pmtilesProtocol = new Protocol();
+maplibregl.addProtocol('pmtiles', pmtilesProtocol.tile);
 const STYLES=HarshMaps.styles, START={center:[72.8777,19.076],zoom:10.2};
 const map=HarshMaps.createMap(maplibregl,'map',{style:STYLES.liberty,center:START.center,zoom:START.zoom,maxZoom:20,minZoom:2,attributionControl:{compact:true}});
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 let searchMarkers=[],routeMarkers=[],latestRoute=null,is3D=false,activeStyle='liberty',toastTimer;
+let placesEnabled=true,placesCategory='all',placesRelease=null,placesLayerBound=false;
 function toast(message){$('#toast').textContent=message;$('#toast').classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),3200)}
 function status(message,warning=false){$('#map-status').textContent=message;$('#map-health-dot').classList.toggle('warning',warning)}
 function updateZoom(){$('#zoom-status').textContent='ZOOM '+map.getZoom().toFixed(1)}
@@ -24,7 +29,7 @@ async function search(query){
 $('#search-form').addEventListener('submit',e=>{e.preventDefault();search($('#place-query').value)});
 $$('[data-query]').forEach(b=>b.addEventListener('click',()=>search(b.dataset.query)));
 $$('.tab').forEach(tab=>tab.addEventListener('click',()=>{$$('.tab').forEach(t=>{const yes=t===tab;t.classList.toggle('active',yes);t.setAttribute('aria-selected',String(yes))});$$('.tool-panel').forEach(p=>{const yes=p.id===tab.dataset.panel;p.classList.toggle('active',yes);p.hidden=!yes})}));
-$$('[data-style]').forEach(b=>b.addEventListener('click',()=>{const name=b.dataset.style;if(!STYLES[name]||name===activeStyle)return;activeStyle=name;$$('.style-choice').forEach(t=>t.classList.toggle('active',t===b));setStatusLabel('Loading '+name+' style…');map.setStyle(STYLES[name]);map.once('style.load',()=>{status(name[0].toUpperCase()+name.slice(1)+' style active');if(latestRoute)HarshMaps.drawRoute(map,latestRoute.feature,latestRoute.options);if(is3D)HarshMaps.set3D(map,true)})}));
+$$('[data-style]').forEach(b=>b.addEventListener('click',()=>{const name=b.dataset.style;if(!STYLES[name]||name===activeStyle)return;activeStyle=name;$$('.style-choice').forEach(t=>t.classList.toggle('active',t===b));setStatusLabel('Loading '+name+' style…');map.setStyle(STYLES[name]);map.once('style.load',()=>{status(name[0].toUpperCase()+name.slice(1)+' style active');if(latestRoute)HarshMaps.drawRoute(map,latestRoute.feature,latestRoute.options);if(is3D)HarshMaps.set3D(map,true);if(placesEnabled)refreshPlacesLayer()})}));
 function setStatusLabel(s){status(s)}
 $('#toggle-3d').addEventListener('click',()=>{is3D=!is3D;$('#toggle-3d').setAttribute('aria-pressed',String(is3D));const supported=HarshMaps.set3D(map,is3D);status(is3D?'3D perspective enabled':'Flat map view');if(is3D&&!supported)toast('Perspective enabled; this style may not include 3D building geometry.')});
 function distance(m){return m>=1000?(m/1000).toFixed(m>=10000?0:1)+' km':Math.round(m)+' m'}
@@ -43,7 +48,7 @@ $('#use-current-location').addEventListener('click',()=>locate(true));$('#locate
 $('#reset-view').addEventListener('click',()=>{map.flyTo({center:START.center,zoom:START.zoom,bearing:0,pitch:0,speed:1.15});clearMarkers(searchMarkers);clearMarkers(routeMarkers);latestRoute=null;HarshMaps.clearRoute(map);labelView('Mumbai, India');status('Map view reset')});
 $('#mobile-menu').addEventListener('click',()=>{const open=$('#control-panel').classList.toggle('open');$('#mobile-menu').setAttribute('aria-expanded',String(open))});
 $('#copy-snippet').addEventListener('click',async()=>{const snippet='<div id="map" style="height:420px"></div>\n<script type="module">\n  import * as ml from "https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.mjs";\n  import { HarshMaps } from "https://cdn.jsdelivr.net/gh/harshyadavv2456/HarshMaps@main/sdk/harshmaps.js";\n  HarshMaps.createMap(ml, "map", { style: HarshMaps.styles.liberty });\n</script>';try{await navigator.clipboard.writeText(snippet);$('#copy-snippet').textContent='Copied ✓';setTimeout(()=>$('#copy-snippet').textContent='Copy snippet ⧉',1800)}catch{toast('Clipboard blocked. Copy the snippet from the code panel.')}});
-map.on('load',()=>{$('#map-loader').classList.add('hidden');status('Connected · OpenFreeMap vector tiles');updateZoom();map.addControl(new maplibregl.GeolocateControl({positionOptions:{enableHighAccuracy:true},trackUserLocation:false,showUserHeading:true}),'top-right')});
+map.on('load',()=>{$('#map-loader').classList.add('hidden');status('Connected · OpenFreeMap vector tiles');updateZoom();map.addControl(new maplibregl.GeolocateControl({positionOptions:{enableHighAccuracy:true},trackUserLocation:false,showUserHeading:true}),'top-right');refreshPlacesLayer()});
 map.on('zoom',updateZoom);map.on('error',e=>{if(e&&e.error&&!map.loaded())status('Waiting for map service…',true)});
 
 // Universal integration builder: generate copy/paste iframe or a direct browser SDK example.
@@ -145,3 +150,62 @@ if (embedOptionsForm) {
   });
   updateEmbedBuilder();
 }
+
+
+// Overture Places: a global vector-tile overlay. The public source is an
+// experimental inspection tileset, not a production SLA-backed service.
+function placesStatus(message, warning = false) {
+  const row = $('#places-layer-status');
+  if (!row) return;
+  row.querySelector('span').textContent = message;
+  row.classList.toggle('warning', warning);
+}
+async function fetchPlacesRelease() {
+  const url = new URL('./data/overture-release.json', import.meta.url);
+  url.searchParams.set('check', String(Date.now()));
+  const response = await fetch(url, { cache: 'no-store', headers: { Accept: 'application/json' } });
+  if (!response.ok) throw new Error('Release metadata returned HTTP ' + response.status);
+  const metadata = await response.json();
+  if (!validOvertureRelease(metadata.release)) throw new Error('The Overture release metadata is invalid.');
+  return metadata;
+}
+async function refreshPlacesLayer() {
+  if (!placesEnabled) return;
+  placesStatus('Checking the current Overture places release…');
+  try {
+    const metadata = await fetchPlacesRelease();
+    if (placesRelease === metadata.release && map.getLayer('harshmaps-overture-place-dots') && map.getLayer('harshmaps-overture-place-labels')) {
+      setOverturePlaceCategory(map, placesCategory);
+      setOverturePlacesVisible(map, true);
+      placesStatus('Global places layer active · Overture ' + metadata.release);
+      return;
+    }
+    addOverturePlaces(map, metadata.release, { category: placesCategory, visible: true });
+    if (!placesLayerBound) {
+      bindOverturePlacePopups(map, maplibregl);
+      placesLayerBound = true;
+    }
+    placesRelease = metadata.release;
+    placesStatus('Global places layer active · Overture ' + metadata.release);
+  } catch (error) {
+    placesStatus('Places data could not load: ' + (error && error.message ? error.message : 'unknown error') + '. The base map still works.', true);
+  }
+}
+$('#toggle-places-layer').addEventListener('click', () => {
+  placesEnabled = !placesEnabled;
+  $('#toggle-places-layer').setAttribute('aria-pressed', String(placesEnabled));
+  if (placesEnabled) {
+    refreshPlacesLayer();
+  } else {
+    setOverturePlacesVisible(map, false);
+    placesStatus('Places hidden. The basemap and search remain available.');
+  }
+});
+$('#places-category').addEventListener('change', () => {
+  placesCategory = $('#places-category').value;
+  setOverturePlaceCategory(map, placesCategory);
+  if (placesEnabled) refreshPlacesLayer();
+});
+setInterval(() => {
+  if (placesEnabled) refreshPlacesLayer();
+}, 15 * 60 * 1000);
