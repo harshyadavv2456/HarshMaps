@@ -28,11 +28,17 @@ Default: https://photon.komoot.io/api/. Photon is an open-source OSM-based geoco
 
 For a public product, use a provider plan with clear production terms or operate your own geocoder. This demo searches only when a user submits a query.
 
-### Routing — OSRM demo endpoint
+### Routing — OSRM public demo profiles
 
-Default: https://router.project-osrm.org/route/v1. The endpoint implements the OSRM route API, but a public demo server is not production infrastructure. This starter requests driving routes; other profiles are available only if a target server supports them.
+The web explorer offers driving, walking and cycling using FOSSGIS-hosted public OSRM profile endpoints:
 
-For production, evaluate a managed routing provider or host OSRM, Valhalla, or GraphHopper with current road data, monitoring, capacity planning, caching, and documented usage rules.
+- Driving: `https://routing.openstreetmap.de/routed-car/route/v1/driving`
+- Walking: `https://routing.openstreetmap.de/routed-foot/route/v1/driving`
+- Cycling: `https://routing.openstreetmap.de/routed-bike/route/v1/driving`
+
+The SDK's default route helper still supports the generic `https://router.project-osrm.org/route/v1` endpoint, while the explorer selects the profile-specific public endpoints above. The public demos request reasonable/light use (the FOSSGIS service documents a maximum of one request per second), do not provide an uptime SLA, and may throttle or change. Do not use them as guaranteed live-navigation infrastructure.
+
+For production, evaluate a managed routing provider or host OSRM, Valhalla, or GraphHopper with current road data, profiles, monitoring, capacity planning, caching, and documented usage rules. The interface displays OSRM source attribution and labels public route results as estimates.
 
 ## Can it match Mapbox or Google Maps?
 
