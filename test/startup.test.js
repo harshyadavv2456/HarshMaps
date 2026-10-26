@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const appPath = new URL('../app.js', import.meta.url);
+const indexPath = new URL('../index.html', import.meta.url);
 
 test('quick-city controls use the all-elements selector', async () => {
   const source = await readFile(appPath, 'utf8');
@@ -34,4 +35,11 @@ test('the main search handler exists and the search input exposes its dropdown',
   assert.ok(source.includes('async function search(query,options={})'));
   assert.ok(source.includes('function renderSearchSuggestions('));
   assert.ok(source.includes("search($('#place-query').value,{live:false})"));
+});
+
+test('the served homepage contains the autocomplete dropdown and correct cache version', async () => {
+  const html = await readFile(indexPath, 'utf8');
+  assert.match(html, /id="search-suggestions"/);
+  assert.match(html, /aria-controls="search-suggestions"/);
+  assert.match(html, /app\\.js\\?v=20261026-8/);
 });
