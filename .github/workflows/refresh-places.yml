@@ -1,6 +1,12 @@
 name: Refresh Overture Places release pointer
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/refresh-places.yml'
+      - 'scripts/refresh-overture-release.mjs'
+      - 'data/overture-release.json'
   schedule:
     - cron: '*/15 * * * *'
   workflow_dispatch:
