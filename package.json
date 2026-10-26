@@ -1,7 +1,7 @@
 {
   "name": "harshmaps",
   "version": "0.1.0",
-  "description": "Configurable browser mapping SDK built on MapLibre and open map infrastructure",
+  "description": "Configurable mapping SDK and experimental worldwide places layer built on open map infrastructure",
   "type": "module",
   "license": "MIT",
   "main": "./sdk/harshmaps.js",
@@ -14,6 +14,10 @@
     "./sdk": {
       "types": "./sdk/harshmaps.d.ts",
       "import": "./sdk/harshmaps.js"
+    },
+    "./places-layer": {
+      "types": "./sdk/places-layer.d.ts",
+      "import": "./sdk/places-layer.js"
     }
   },
   "files": [
