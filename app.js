@@ -1,4 +1,5 @@
 import { HarshMaps } from './sdk/harshmaps.js';
+import { formatDistance, rankNearbyPlaces } from './sdk/nearby.js';
 import { addOverturePlaces, bindOverturePlacePopups, validOvertureRelease, setOverturePlaceCategory, setOverturePlacesVisible } from './sdk/places-layer.js';
 
 function withImportTimeout(promise, milliseconds, label) {
@@ -125,6 +126,133 @@ function detectPlaceCategory(query){
  const normalized=String(query||'').toLowerCase().trim().replace(/[.,!?]/g,'').replace(/\b(?:near me|nearby|around me)\b/g,'').replace(/\s+/g,' ').trim();
  return PLACE_CATEGORY_SEARCH.find(item=>item.terms.includes(normalized))||null;
 }
+function waitForMapIdle(timeoutMs=7000){
+ return new Promise(resolve=>{
+   let timer=null;
+   let settled=false;
+   const finish=()=>{
+     if(settled)return;
+     settled=true;
+     if(timer)clearTimeout(timer);
+     map.off('idle',finish);
+     resolve();
+   };
+   map.once('idle',finish);
+   timer=setTimeout(finish,timeoutMs);
+ });
+}
+async function showNearbyCategoryResults(category){
+ const area=selectedSearchArea&&Array.isArray(selectedSearchArea.coordinates)?selectedSearchArea:null;
+ const current=map.getCenter();
+ const center=area?area.coordinates:[current.lng,current.lat];
+ const targetZoom=Math.max(14.5,map.getZoom());
+ placesEnabled=true;
+ placesCategory=category.id;
+ $('#toggle-places-layer').setAttribute('aria-pressed','true');
+ $('#places-category').value=category.id;
+ setOverturePlaceCategory(map,category.id);
+ setOverturePlacesVisible(map,true);
+ labelView(category.title+(area?' · '+(area.name||area.label):' nearby'),
+   'NEARBY PLACES · STRAIGHT-LINE DISTANCE');
+ status('Finding labeled '+category.title.toLowerCase()+'…');
+ const box=$('#search-results');
+ const old=box.querySelector('.nearby-results-container');
+ if(old)old.remove();
+ try{
+   await refreshPlacesLayer();
+   map.flyTo({center,zoom:targetZoom,speed:1.05,essential:true});
+   await waitForMapIdle(8000);
+   const features=map.getLayer('harshmaps-overture-place-dots')
+     ?map.queryRenderedFeatures({layers:['harshmaps-overture-place-dots']}):[];
+   const results=rankNearbyPlaces(features,center,{limit:20});
+   const panel=document.createElement('section');
+   panel.className='nearby-results-container';
+   panel.setAttribute('aria-label','Nearby '+category.title.toLowerCase());
+   const heading=document.createElement('div');
+   heading.className='nearby-results-heading';
+   const title=document.createElement('strong');
+   title.textContent='Nearby '+category.title;
+   const count=document.createElement('span');
+   count.textContent=String(results.length).padStart(2,'0');
+   heading.append(title,count);
+   panel.append(heading);
+   const explanation=document.createElement('p');
+   explanation.className='nearby-results-note';
+   explanation.textContent=area
+     ?'Labeled places visible around '+(area.name||area.label)+', closest first.'
+     :'Labeled places visible around the current map view, closest first.';
+   panel.append(explanation);
+   if(!results.length){
+     const empty=document.createElement('div');
+     empty.className='nearby-results-empty';
+     empty.textContent='No labeled places were returned for this category in the visible map tiles. The global places layer is experimental, so coverage may be incomplete.';
+     panel.append(empty);
+     const retry=document.createElement('button');
+     retry.type='button';
+     retry.className='nearby-results-retry';
+     retry.textContent='Retry nearby search';
+     retry.addEventListener('click',()=>{void showNearbyCategoryResults(category)});
+     panel.append(retry);
+     box.append(panel);
+     status('No labeled places found in the visible map tiles',true);
+     return;
+   }
+   results.forEach(place=>{
+     const item=document.createElement('button');
+     item.type='button';
+     item.className='result-card nearby-result-card';
+     item.setAttribute('aria-label','Show '+place.name+' on map, '+formatDistance(place.distanceMeters)+' away');
+     const pin=document.createElement('span');
+     pin.className='result-pin';
+     pin.textContent='⌖';
+     const copy=document.createElement('span');
+     copy.className='result-text';
+     const name=document.createElement('strong');
+     name.textContent=place.name;
+     const meta=document.createElement('small');
+     meta.className='result-address';
+     meta.textContent=formatDistance(place.distanceMeters)+' straight-line · '+place.category;
+     copy.append(name,meta);
+     const arrow=document.createElement('span');
+     arrow.className='result-arrow';
+     arrow.textContent='↗';
+     item.append(pin,copy,arrow);
+     item.addEventListener('click',()=>{
+       clearMarkers(searchMarkers);
+       const selected={...place,label:place.label||place.name};
+       marker(selected);
+       map.flyTo({center:selected.coordinates,zoom:16,speed:1.1,essential:true});
+       labelView(selected.name,[selected.category,selected.city,selected.state,selected.country].filter(Boolean).join(' · ').toUpperCase());
+       status('Showing '+selected.name);
+       offerDirectionsTo(selected);
+       box.querySelectorAll('.result-card').forEach(resultCard=>resultCard.removeAttribute('aria-current'));
+       item.setAttribute('aria-current','true');
+     });
+     panel.append(item);
+   });
+   const sourceNote=document.createElement('p');
+   sourceNote.className='nearby-results-note';
+   sourceNote.textContent='Results come from experimental Overture inspection tiles. Distances are straight-line estimates, not walking or driving distances.';
+   panel.append(sourceNote);
+   box.append(panel);
+   status(results.length+' labeled places shown · closest first');
+ }catch(error){
+   const panel=document.createElement('section');
+   panel.className='nearby-results-container';
+   const message=document.createElement('p');
+   message.className='nearby-results-empty';
+   message.textContent='Nearby place results could not be loaded. The base map may still work; try again in a moment.';
+   panel.append(message);
+   const retry=document.createElement('button');
+   retry.type='button';
+   retry.className='nearby-results-retry';
+   retry.textContent='Retry nearby search';
+   retry.addEventListener('click',()=>{void showNearbyCategoryResults(category)});
+   panel.append(retry);
+   box.append(panel);
+   status('Nearby place lookup unavailable',true);
+ }
+}
 function showCategoryBrowseAction(category){
  if(!category)return;
  const box=$('#search-results');
@@ -137,23 +265,8 @@ function showCategoryBrowseAction(category){
    :'Show mapped '+category.title.toLowerCase()+' near the current map view. Add Search In to focus another city.';
  text.append(title,details);
  const action=document.createElement('button');action.type='button';action.className='browse-category-action';action.textContent='Show on map →';
- action.addEventListener('click',()=>{
-   placesEnabled=true;placesCategory=category.id;
-   $('#toggle-places-layer').setAttribute('aria-pressed','true');
-   $('#places-category').value=category.id;
-   setOverturePlaceCategory(map,category.id);
-   setOverturePlacesVisible(map,true);
-   refreshPlacesLayer();
-   const tab=$$('.tab').find(item=>item.dataset.panel==='places-panel');
-   if(tab)tab.click();
-   if(selectedSearchArea&&Array.isArray(selectedSearchArea.coordinates)){
-     map.flyTo({center:selectedSearchArea.coordinates,zoom:Math.max(14,map.getZoom()),speed:1.1,essential:true});
-     labelView(category.title+' · '+(selectedSearchArea.name||selectedSearchArea.label),'OPEN PLACES · '+(selectedSearchArea.country||'SELECTED AREA').toUpperCase());
-   }else{
-     if(map.getZoom()<12)map.flyTo({center:map.getCenter(),zoom:12,speed:1.1,essential:true});
-     labelView(category.title+' nearby','OPEN PLACES · CURRENT MAP AREA');
-   }
-   status('Browsing '+category.title.toLowerCase()+' on the map');
+ action.addEventListener('click',async()=>{
+   await showNearbyCategoryResults(category);
  });
  card.append(icon,text,action);box.prepend(card);
 }
