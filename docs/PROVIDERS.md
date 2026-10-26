@@ -14,6 +14,14 @@ The demo loads hosted OpenFreeMap style JSON and OpenStreetMap-derived vector ti
 
 Tile service availability, style coverage, label quality, POI density, and data freshness depend on OpenFreeMap and upstream data.
 
+### Worldwide places layer — Overture Maps
+
+The explorer and embed can add the Overture Places vector tile set from the current release. The official October 21, 2026 release reports 88.4 million place features worldwide. Tiles are streamed from a public PMTiles inspection endpoint; this avoids downloading the global dataset into the browser and does not require a map API key.
+
+**Do not treat the public PMTiles endpoint as production infrastructure.** Overture's documentation says these tiles are generated for data inspection and may change their layers, properties, zoom levels, availability, or performance without notice. HarshMaps therefore labels this layer experimental. For a durable production service, query Overture's source GeoParquet by geographic area, generate tiles with a stable schema, host the tiles under infrastructure you control, and monitor releases and attribution requirements. See the [official cloud-source guidance](https://docs.overturemaps.org/getting-data/cloud-sources/) and [Overture release calendar](https://docs.overturemaps.org/release-calendar/).
+
+The repository's GitHub Actions workflow polls the Overture STAC release pointer every 15 minutes and updates the static release metadata only when the release ID changes. Overture releases data monthly; this polling interval is not the listing-refresh cadence. The overlay is a separate open-data source, not a scrape or redistribution of Google Maps listings.
+
 ### Place search — Photon demo endpoint
 
 Default: https://photon.komoot.io/api/. Photon is an open-source OSM-based geocoder. The public demo endpoint is for reasonable use; the operator may throttle or ban extensive use and gives no availability guarantee.
@@ -39,8 +47,8 @@ For production, evaluate a managed routing provider or host OSRM, Valhalla, or G
 
 ## Production checklist
 
-1. Choose service owners for tiles, geocoding, routing, and (if required) traffic.
-2. Check commercial terms. Open source does not mean every hosted API is unlimited or backed by an SLA.
+1. Choose service owners for base tiles, the global places layer, geocoding, routing, and (if required) traffic.
+2. Check data licenses and commercial terms. Keep the experimental Overture PMTiles out of production; publish your own versioned places tiles or API before depending on it.
 3. Follow data and caching terms; add request deduplication and sensible limits.
 4. Add a backend proxy where needed to hide private keys, cache results, enforce quotas, observe latency, and switch providers.
 5. Monitor provider errors, add timeouts/retries with backoff, and show graceful fallbacks.
