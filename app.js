@@ -1,5 +1,6 @@
 import { HarshMaps } from './sdk/harshmaps.js';
 import { formatDistance, rankNearbyPlaces } from './sdk/nearby.js';
+import { detectPlaceCategory, extractCategoryLocation } from './sdk/search-intent.js';
 import { addOverturePlaces, bindOverturePlacePopups, validOvertureRelease, setOverturePlaceCategory, setOverturePlacesVisible } from './sdk/places-layer.js';
 
 function withImportTimeout(promise, milliseconds, label) {
@@ -111,20 +112,6 @@ function setEmptySearch(message,title='No matching places'){
 function placeContext(place){
  const parts=[place.street,place.district,place.city,place.state,place.country].filter(Boolean);
  return parts.filter((v,i,a)=>a.findIndex(x=>String(x).toLowerCase()===String(v).toLowerCase())===i).join(', ');
-}
-const PLACE_CATEGORY_SEARCH=Object.freeze([
- {id:'banks',title:'Banks & ATMs',terms:['bank','banks','atm','atms','cash machine','cash machines'],icon:'▤'},
- {id:'food',title:'Food & drink',terms:['restaurant','restaurants','cafe','cafes','coffee shop','coffee shops','fast food','food'],icon:'♨'},
- {id:'shopping',title:'Shops & retail',terms:['shop','shops','store','stores','shopping','supermarket','supermarkets','grocery','groceries'],icon:'◇'},
- {id:'health',title:'Healthcare',terms:['hospital','hospitals','clinic','clinics','pharmacy','pharmacies','doctor','doctors','dentist','dentists'],icon:'+'},
- {id:'education',title:'Schools & universities',terms:['school','schools','college','colleges','university','universities'],icon:'⌂'},
- {id:'lodging',title:'Hotels & accommodation',terms:['hotel','hotels','hostel','hostels','motel','motels'],icon:'⌑'},
- {id:'landmarks',title:'Landmarks & attractions',terms:['monument','monuments','museum','museums','landmark','landmarks','attraction','attractions','temple','temples','church','churches','mosque','mosques'],icon:'⌖'},
- {id:'services',title:'Public services & fuel',terms:['gas station','gas stations','petrol pump','petrol pumps','post office','post offices','government office','government offices'],icon:'↗'}
-]);
-function detectPlaceCategory(query){
- const normalized=String(query||'').toLowerCase().trim().replace(/[.,!?]/g,'').replace(/\b(?:near me|nearby|around me)\b/g,'').replace(/\s+/g,' ').trim();
- return PLACE_CATEGORY_SEARCH.find(item=>item.terms.includes(normalized))||null;
 }
 function waitForMapIdle(timeoutMs=7000){
  return new Promise(resolve=>{
@@ -271,6 +258,26 @@ async function showNearbyCategoryResults(category,options={}){
    status('Nearby place lookup unavailable',true);
  }
 }
+async function selectCategoryLocation(locationQuery){
+ try{
+   const current=map.getCenter();
+   const places=await HarshMaps.searchPlaces(locationQuery,{
+     baseUrl:HarshMaps.providers.photon,limit:8,
+     lat:current.lat,lon:current.lng,zoom:5,locationBiasScale:0.1,
+     layers:['city','locality','district','county','state']
+   });
+   if(!places.length)return false;
+   const wanted=String(locationQuery).split(',')[0].trim().toLowerCase();
+   const place=places.find(item=>String(item.name||'').toLowerCase()===wanted)
+     ||places.find(item=>String(item.label||'').toLowerCase().includes(wanted))
+     ||places[0];
+   setSearchArea(place);
+   map.flyTo({center:place.coordinates,zoom:11.5,speed:1.1,essential:true});
+   labelView(place.name||place.label,[place.state,place.country].filter(Boolean).join(' · ').toUpperCase()||'SELECTED CITY');
+   status('Searching '+(place.name||place.label));
+   return true;
+ }catch(error){return false}
+}
 function showCategoryBrowseAction(category,query=''){
  if(!category)return;
  const box=$('#search-results');
@@ -278,14 +285,22 @@ function showCategoryBrowseAction(category,query=''){
  const icon=document.createElement('span');icon.className='browse-category-icon';icon.textContent=category.icon;
  const text=document.createElement('span');text.className='browse-category-copy';
  const title=document.createElement('strong');title.textContent='Browse '+category.title;
+ const queryLocation=selectedSearchArea?'':extractCategoryLocation(query);
  const details=document.createElement('small');details.textContent=selectedSearchArea
    ?'Show mapped '+category.title.toLowerCase()+' near '+(selectedSearchArea.name||selectedSearchArea.label)+'.'
-   :/\b(?:near me|nearby|around me)\b/i.test(query)
-     ?'Use your device location to find labeled '+category.title.toLowerCase()+' nearby.'
-     :'Show mapped '+category.title.toLowerCase()+' near the current map view. Add Search In to focus another city.';
+   :queryLocation
+     ?'Move to '+queryLocation+' and show labeled '+category.title.toLowerCase()+'.'
+     :/\b(?:near me|nearby|around me)\b/i.test(query)
+       ?'Use your device location to find labeled '+category.title.toLowerCase()+' nearby.'
+       :'Show mapped '+category.title.toLowerCase()+' near the current map view. Add Search In to focus another city.';
  text.append(title,details);
  const action=document.createElement('button');action.type='button';action.className='browse-category-action';action.textContent='Show on map →';
  action.addEventListener('click',async()=>{
+   const locationQuery=selectedSearchArea?'':extractCategoryLocation(query);
+   if(locationQuery){
+     const located=await selectCategoryLocation(locationQuery);
+     if(!located){status('Could not resolve '+locationQuery,true);toast('Could not find that city or area. Try using Search In.');return}
+   }
    await showNearbyCategoryResults(category,{useDeviceLocation:!selectedSearchArea&&/\b(?:near me|nearby|around me)\b/i.test(query)});
  });
  card.append(icon,text,action);box.prepend(card);
