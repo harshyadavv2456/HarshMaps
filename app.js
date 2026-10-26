@@ -42,7 +42,7 @@ const PLACE_CATEGORY_SEARCH=Object.freeze([
  {id:'services',title:'Public services & fuel',terms:['gas station','gas stations','petrol pump','petrol pumps','post office','post offices','government office','government offices'],icon:'↗'}
 ]);
 function detectPlaceCategory(query){
- const normalized=String(query||'').toLowerCase().trim().replace(/[.,!?]/g,'').replace(/\s+/g,' ');
+ const normalized=String(query||'').toLowerCase().trim().replace(/[.,!?]/g,'').replace(/\b(?:near me|nearby|around me)\b/g,'').replace(/\s+/g,' ').trim();
  return PLACE_CATEGORY_SEARCH.find(item=>item.terms.includes(normalized))||null;
 }
 function showCategoryBrowseAction(category){
@@ -67,7 +67,7 @@ function showCategoryBrowseAction(category){
    const tab=$$('.tab').find(item=>item.dataset.panel==='places-panel');
    if(tab)tab.click();
    if(selectedSearchArea&&Array.isArray(selectedSearchArea.coordinates)){
-     map.flyTo({center:selectedSearchArea.coordinates,zoom:Math.max(13,map.getZoom()),speed:1.1,essential:true});
+     map.flyTo({center:selectedSearchArea.coordinates,zoom:Math.max(14,map.getZoom()),speed:1.1,essential:true});
      labelView(category.title+' · '+(selectedSearchArea.name||selectedSearchArea.label),'OPEN PLACES · '+(selectedSearchArea.country||'SELECTED AREA').toUpperCase());
    }else{
      if(map.getZoom()<12)map.flyTo({center:map.getCenter(),zoom:12,speed:1.1,essential:true});
