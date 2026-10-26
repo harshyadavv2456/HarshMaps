@@ -448,7 +448,9 @@ export async function searchPlacesResilient(query, options = {}) {
   const category = inferPlaceCategory(effectiveQuery);
   const brandQuery = brandExpression(effectiveQuery);
   const hasExplicitLocation = Boolean(locationQuery);
+  const incompleteLocationQualifier = live && /\\b(?:in|near|around|within)\\s*$/i.test(effectiveQuery);
   const shouldSearchOpenStreetMap = validCenter(center) &&
+    !incompleteLocationQualifier &&
     (!hasExplicitLocation || Boolean(locationResolution) || Boolean(options.areaCoordinates)) &&
     (Boolean(category) || Boolean(brandQuery) && (live ? (effectiveQuery.length >= 3 && isKnownBrandQuery(effectiveQuery) && !/[,\\d]/.test(effectiveQuery)) : true)) &&
     (!live || !hasExplicitLocation || Boolean(options.areaCoordinates));
