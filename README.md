@@ -54,6 +54,16 @@ For React/Next.js/Vite, install MapLibre with npm and copy the SDK source into y
 - TypeScript declarations
 - GitHub Pages deployment workflow and vanilla HTML example
 
+## Install from GitHub
+
+Install HarshMaps directly into an npm-based application from this repository:
+
+~~~bash
+npm install github:harshyadavv2456/HarshMaps maplibre-gl
+~~~
+
+Then import `HarshMaps` from `harshmaps`. This GitHub-installed package is not yet published to the public npm registry.
+
 ## Deploy on GitHub Pages
 
 The workflow at .github/workflows/pages.yml publishes the site whenever the main branch changes. In repository **Settings → Pages**, set **Build and deployment → Source** to **GitHub Actions** once. Then check **Actions** for the deploy job. The published URL should be https://harshyadavv2456.github.io/HarshMaps/.

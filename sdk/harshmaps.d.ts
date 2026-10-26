@@ -2,7 +2,7 @@ export type LngLat=[longitude:number,latitude:number];
 export interface HarshMapsPlace{id:string;name:string;label:string;coordinates:LngLat;city:string;state:string;country:string;extent:number[]|null;properties:Record<string,unknown>}
 export interface SearchPlacesOptions{baseUrl?:string;limit?:number;lat?:number;lon?:number;zoom?:number;fetchImpl?:typeof fetch}
 export interface RouteOptions{baseUrl?:string;profile?:string;alternatives?:boolean;fetchImpl?:typeof fetch}
-export interface HarshMapsRoute{distance:number;duration:number;geometry:GeoJSON.LineString;feature:GeoJSON.FeatureCollection<GeoJSON.LineString>;alternatives:Array<{distance:number;duration:number;geometry:GeoJSON.LineString}>;waypoints:unknown[]}
+export interface HarshMapsRoute{distance:number;duration:number;geometry:GeoJSON.LineString;feature:GeoJSON.FeatureCollection<GeoJSON.LineString>;alternatives:Array<{distance:number;duration:number;geometry:GeoJSON.LineString}>;steps:Array<{distance:number;duration:number;name:string;mode:string;maneuver:Record<string,unknown>}>;waypoints:unknown[]}
 export interface MapOptions{style?:string|Record<string,unknown>;center?:LngLat;zoom?:number;controls?:boolean;[key:string]:unknown}
 export declare const styles:Readonly<Record<'liberty'|'bright'|'positron'|'dark'|'fiord',string>>;
 export declare const providers:Readonly<{photon:string;osrm:string}>;

@@ -20,6 +20,14 @@ Use an HTTPS origin (GitHub Pages works), not a local file URL. The map containe
 
 For repeatable production builds, pin a release tag instead of the main branch in the CDN URL. Keep MapLibre JS and CSS on the same version.
 
+## Install directly from this Git repository
+
+~~~bash
+npm install github:harshyadavv2456/HarshMaps maplibre-gl
+~~~
+
+Then use `import { HarshMaps } from 'harshmaps'`. This is a GitHub-sourced package install; it is not a published npm-registry release yet.
+
 ## Vite, React, or Next.js
 
 Install MapLibre:

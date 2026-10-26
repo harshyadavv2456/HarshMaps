@@ -1,0 +1,30 @@
+{
+  "name": "harshmaps",
+  "version": "0.1.0",
+  "description": "Configurable browser mapping SDK built on MapLibre and open map infrastructure",
+  "type": "module",
+  "license": "MIT",
+  "main": "./sdk/harshmaps.js",
+  "types": "./sdk/harshmaps.d.ts",
+  "exports": {
+    ".": {
+      "types": "./sdk/harshmaps.d.ts",
+      "import": "./sdk/harshmaps.js"
+    },
+    "./sdk": {
+      "types": "./sdk/harshmaps.d.ts",
+      "import": "./sdk/harshmaps.js"
+    }
+  },
+  "files": [
+    "sdk",
+    "README.md",
+    "LICENSE"
+  ],
+  "peerDependencies": {
+    "maplibre-gl": "^6.16.0"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}
