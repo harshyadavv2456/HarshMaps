@@ -34,9 +34,9 @@ const normalise = value => String(value||'').normalize('NFKC').replace(/[’‘]
 
 function findLocation(query) {
   const q=normalise(query);
-  const direct=q.match(/\b(?:in|within)\s+([^,;!?]+)$/i);
+  const direct=q.match(/\b(?:in|within)\s+(.+)$/i);
   if(direct){const p=normalise(direct[1]).replace(/\s+(?:near me|around me|close to me)$/i,'').trim();if(p&&!/^(?:me|here|nearby|my area|my location)$/i.test(p))return p}
-  const near=q.match(/\b(?:near|around|close to)\s+([^,;!?]+)$/i);
+  const near=q.match(/\b(?:near|around|close to)\s+(.+)$/i);
   if(near){const p=normalise(near[1]);if(p&&!/^(?:me|here|nearby|my area|my location)$/i.test(p))return p}
   return '';
 }
@@ -59,7 +59,7 @@ function categoryQuery(rule,q,brand){
     if(/\bstreet food\b/i.test(q))return 'street food';
     return 'restaurants';
   }
-  if(rule.id==='banks')return /\batms?\b|\bcash machine\b/i.test(q)?'ATMs':'banks';
+  if(rule.id==='banks')return /\batms?\b|\bcash machine\b|\bcash withdrawal\b/i.test(q)?'ATMs':'banks';
   if(rule.id==='health'){if(/\b(?:pharmacy|pharmacies|chemist|medical store)\b/i.test(q))return 'pharmacies';if(/\bdentist/i.test(q))return 'dentists';if(/\b(?:gynecologist|gynaecologist)\b/i.test(q))return 'gynecologists';if(/\burologist/i.test(q))return 'urologists';if(/\bivf|fertility/i.test(q))return 'fertility clinics';if(/\bhospital/i.test(q))return 'hospitals';return 'health clinics'}
   if(rule.id==='transport'){if(/\bairport\b/i.test(q))return 'airports';if(/\b(?:railway|train|metro) station\b/i.test(q))return 'railway stations';if(/\b(?:bus station|bus stand|bus stop)\b/i.test(q))return 'bus stations';if(/\b(?:ev charging|charging station)\b/i.test(q))return 'EV charging stations';return 'petrol pumps'}
   if(rule.id==='shopping')return /\b(?:grocery|supermarket)\b/i.test(q)?'supermarkets and grocery stores':/\bmall\b/i.test(q)?'shopping malls':'shops and stores';
