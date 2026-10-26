@@ -395,7 +395,8 @@ export async function searchPlacesResilient(query, options = {}) {
   if (locationQuery && options.allowNominatimFallback && !options.areaCoordinates) {
     try {
       const locations = await searchNominatim(locationQuery, {
-        limit: 5, signal: options.signal, fetchImpl: options.fetchImpl
+        limit: 5, signal: options.signal, fetchImpl: options.fetchImpl,
+        countryCode: options.countryCode
       });
       if (locations.length) {
         const lead = locationQuery.split(',')[0].trim().toLowerCase();
@@ -408,7 +409,7 @@ export async function searchPlacesResilient(query, options = {}) {
       errors.push('Location fallback: ' + (error.message || 'unavailable'));
     }
   }
-  if (locationQuery) {
+  if (locationQuery && options.allowNominatimFallback) {
     const idx = q.toLowerCase().lastIndexOf(locationQuery.toLowerCase());
     if (idx > 0) effectiveQuery = q.slice(0, Math.max(0, idx)).replace(/\b(?:in|near|around|within)\s*$/i, '').trim() || q;
   }
