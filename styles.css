@@ -162,3 +162,5 @@
 .route-alternative.active{border-color:#c5bfff;background:#f8f7ff;box-shadow:inset 3px 0 #675bf4}
 .route-alternative.active strong{color:#5b4bdd}
 .route-alternative:hover{border-color:#c6c1f8}
+
+#map-loader.failed{max-width:min(360px,calc(100% - 24px));line-height:1.5;text-align:center;white-space:normal;padding:14px 16px}#map-loader.failed i{display:none}
