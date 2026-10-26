@@ -5,6 +5,7 @@ import { addOverturePlaces, bindOverturePlacePopups, validOvertureRelease, setOv
 const pmtilesProtocol = new Protocol();
 maplibregl.addProtocol('pmtiles', pmtilesProtocol.tile);
 const STYLES=HarshMaps.styles, START={center:[72.8777,19.076],zoom:10.2};
+const ROUTING_MODES=Object.freeze({driving:{label:'Driving',baseUrl:'https://routing.openstreetmap.de/routed-car/route/v1',profile:'driving'},walking:{label:'Walking',baseUrl:'https://routing.openstreetmap.de/routed-foot/route/v1',profile:'driving'},cycling:{label:'Cycling',baseUrl:'https://routing.openstreetmap.de/routed-bike/route/v1',profile:'driving'}});
 const map=HarshMaps.createMap(maplibregl,'map',{style:STYLES.liberty,center:START.center,zoom:START.zoom,maxZoom:20,minZoom:2,attributionControl:{compact:true}});
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 let searchMarkers=[],routeMarkers=[],latestRoute=null,is3D=false,activeStyle='liberty',toastTimer;
@@ -410,7 +411,8 @@ $('#route-form').addEventListener('submit',async event=>{
  try{
    const origin=await resolveRouteEndpoint('from',fromText);
    const destination=await resolveRouteEndpoint('to',toText);
-   const route=await HarshMaps.getRoute(origin.coordinates,destination.coordinates,{baseUrl:HarshMaps.providers.osrm,profile:'driving',alternatives:true});
+   const mode=ROUTING_MODES[$('#route-mode').value]||ROUTING_MODES.driving;
+   const route=await HarshMaps.getRoute(origin.coordinates,destination.coordinates,{baseUrl:mode.baseUrl,profile:mode.profile,alternatives:true});
    clearMarkers(searchMarkers);clearMarkers(routeMarkers);
    marker(origin,false,true);marker(destination,true,true);
    HarshMaps.drawRoute(map,route.feature,{color:'#675bf4',casingColor:'#ffffff'});
@@ -418,7 +420,7 @@ $('#route-form').addEventListener('submit',async event=>{
    const bounds=new maplibregl.LngLatBounds();route.geometry.coordinates.forEach(point=>bounds.extend(point));
    map.fitBounds(bounds,{padding:{top:100,right:90,bottom:90,left:90},maxZoom:15,duration:1000});
    labelView('Route preview',(origin.name||origin.label)+' → '+(destination.name||destination.label));
-   routeSummary(route);status('Route ready · driving directions');
+   routeSummary(route,mode.label);status('Route ready · '+mode.label.toLowerCase()+' directions');
  }catch(error){
    result.replaceChildren();
    const note=document.createElement('div');note.className='route-note';
