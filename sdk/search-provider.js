@@ -140,7 +140,11 @@ export function brandExpression(query) {
   const known = KNOWN_BRANDS.find(item => item.pattern.test(q));
   if (known) return known.expression;
   if (/^[A-Z0-9]{2,8}$/.test(q)) return escapeRegex(q);
-  return escapeRegex(q);
+  if (/^[a-z0-9][a-z0-9 '&.-]{0,24}$/i.test(q) && q.split(/\s+/).length <= 3 &&
+      !/^(?:where|what|when|how|find|show|search|best|nearest|closest|in|near|around|within|my|me)$/i.test(q)) {
+    return escapeRegex(q);
+  }
+  return '';
 }
 
 function categorySelectors(categoryId, lat, lon, radius) {
@@ -409,40 +413,44 @@ export async function searchPlacesResilient(query, options = {}) {
     if (idx > 0) effectiveQuery = q.slice(0, Math.max(0, idx)).replace(/\b(?:in|near|around|within)\s*$/i, '').trim() || q;
   }
 
-  if (typeof options.photonSearch === 'function') {
-    try {
-      const result = await options.photonSearch(effectiveQuery, {
-        center, signal: options.signal, live,
-        limit: options.limit || (live ? 7 : 10)
-      });
-      photonPlaces = Array.isArray(result) ? result : [];
-    } catch (error) {
-      if (options.signal?.aborted || error?.name === 'AbortError') throw error;
-      errors.push('Photon: ' + (error.message || 'request failed'));
-    }
-  }
-
   const category = inferPlaceCategory(effectiveQuery);
   const brandQuery = brandExpression(effectiveQuery);
   const hasExplicitLocation = Boolean(locationQuery);
   const shouldSearchOpenStreetMap = validCenter(center) &&
     (!hasExplicitLocation || Boolean(locationResolution) || Boolean(options.areaCoordinates)) &&
-    (Boolean(category) || Boolean(brandQuery) && (live ? (effectiveQuery.length >= 3 && !/[,\d]/.test(effectiveQuery)) : true)) &&
+    (Boolean(category) || Boolean(brandQuery) && (live ? (effectiveQuery.length >= 3 && !/[,\\d]/.test(effectiveQuery)) : true)) &&
     (!live || !hasExplicitLocation || Boolean(options.areaCoordinates));
 
-  let osmPlaces = [];
-  if (shouldSearchOpenStreetMap && options.includeNearby !== false) {
+  const photonTask = async () => {
+    if (typeof options.photonSearch !== 'function') return [];
+    const timed = timeoutSignal(options.signal, options.photonTimeoutMs || (live ? 4_500 : 6_500));
     try {
-      osmPlaces = await searchOverpassPlaces(effectiveQuery, {
-        center, category, signal: options.signal, fetchImpl: options.fetchImpl,
-        endpoints: options.overpassEndpoints, radiusMeters: options.radiusMeters,
-        timeoutMs: options.overpassTimeoutMs
+      const result = await options.photonSearch(effectiveQuery, {
+        center, signal: timed.signal, live,
+        limit: options.limit || (live ? 7 : 10)
       });
-    } catch (error) {
-      if (options.signal?.aborted || error?.name === 'AbortError') throw error;
-      errors.push('OpenStreetMap nearby search: ' + (error.message || 'request failed'));
+      return Array.isArray(result) ? result : [];
+    } finally {
+      timed.cleanup();
     }
-  }
+  };
+  const openStreetMapTask = async () => {
+    if (!shouldSearchOpenStreetMap || options.includeNearby === false) return [];
+    return searchOverpassPlaces(effectiveQuery, {
+      center, category, signal: options.signal, fetchImpl: options.fetchImpl,
+      endpoints: options.overpassEndpoints, radiusMeters: options.radiusMeters,
+      timeoutMs: options.overpassTimeoutMs || 5_000
+    });
+  };
+  const [photonOutcome, osmOutcome] = await Promise.allSettled([photonTask(), openStreetMapTask()]);
+  if (photonOutcome.status === 'fulfilled') photonPlaces = photonOutcome.value;
+  else if (options.signal?.aborted || photonOutcome.reason?.name === 'AbortError') throw photonOutcome.reason;
+  else errors.push('Photon: ' + (photonOutcome.reason?.message || 'request failed'));
+
+  let osmPlaces = [];
+  if (osmOutcome.status === 'fulfilled') osmPlaces = osmOutcome.value;
+  else if (options.signal?.aborted || osmOutcome.reason?.name === 'AbortError') throw osmOutcome.reason;
+  else errors.push('OpenStreetMap nearby search: ' + (osmOutcome.reason?.message || 'request failed'));
 
   const combined = [...photonPlaces, ...osmPlaces];
   let nominatimPlaces = [];
