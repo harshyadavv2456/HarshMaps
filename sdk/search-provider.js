@@ -411,6 +411,7 @@ export async function searchPlacesResilient(query, options = {}) {
   let center = validCenter(options.center) ? options.center : null;
   let effectiveQuery = q;
   let locationResolution = null;
+  let nominatimAttemptedForLocation = false;
   const errors = [];
   let photonPlaces = [];
   const cacheKey = searchCacheKey(q, center, options);
@@ -424,6 +425,7 @@ export async function searchPlacesResilient(query, options = {}) {
   }
 
   if (locationQuery && options.allowNominatimFallback && !options.areaCoordinates) {
+    nominatimAttemptedForLocation = true;
     try {
       const locations = await searchNominatim(locationQuery, {
         limit: 5, signal: options.signal, fetchImpl: options.fetchImpl,
@@ -488,7 +490,7 @@ export async function searchPlacesResilient(query, options = {}) {
 
   const combined = [...photonPlaces, ...osmPlaces];
   let nominatimPlaces = [];
-  if (!combined.length && options.allowNominatimFallback) {
+  if (!combined.length && options.allowNominatimFallback && !nominatimAttemptedForLocation) {
     try {
       nominatimPlaces = await searchNominatim(effectiveQuery, {
         limit: options.limit || 10, signal: options.signal,
@@ -498,9 +500,6 @@ export async function searchPlacesResilient(query, options = {}) {
       if (options.signal?.aborted || error?.name === 'AbortError') throw error;
       errors.push('Nominatim fallback: ' + (error.message || 'request failed'));
     }
-  }
-  if (locationResolution && !combined.length && !nominatimPlaces.some(place => place.id === locationResolution.id)) {
-    nominatimPlaces.push(locationResolution);
   }
   const results = rankSearchRecommendations(
     [...combined, ...nominatimPlaces], q, center,
