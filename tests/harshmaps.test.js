@@ -27,3 +27,30 @@ test('returns route geometry, metrics, route steps, and validates coordinates', 
  assert.match(requestUrl,/\/driving\/79,21;78,20/);assert.equal(route.distance,1200);assert.equal(route.steps[0].name,'Main Street');assert.equal(route.feature.features[0].geometry.type,'LineString');
  await assert.rejects(()=>HarshMaps.getRoute([190,21],[78,20]),/invalid longitude/);
 });
+
+test('supports cancellable city-biased search, optional area bounds and normalized place context', async () => {
+ let requestedUrl='';
+ let requestInit=null;
+ const controller=new AbortController();
+ const places=await HarshMaps.searchPlaces('HDFC Bank',{
+  baseUrl:'https://geocoder.example/api/',
+  limit:10,lat:21.1458,lon:79.0882,zoom:12,locationBiasScale:0.65,
+  bbox:[79.0,21.0,79.2,21.2],layers:['city','locality'],lang:'en',signal:controller.signal,
+  fetchImpl:async(url,init)=>{
+   requestedUrl=String(url);requestInit=init;
+   return {ok:true,json:async()=>({features:[{
+    geometry:{coordinates:[79.0882,21.1458]},
+    properties:{name:'HDFC Bank',street:'Wardha Road',district:'Nagpur',city:'Nagpur',state:'Maharashtra',country:'India',postcode:'440015',osm_key:'amenity',osm_value:'bank',osm_type:'N',osm_id:100,extent:[79.0,21.2,79.2,21.0]}
+   }]})};
+  }
+ });
+ assert.match(requestedUrl,/location_bias_scale=0\.65/);
+ assert.match(requestedUrl,/bbox=79%2C21%2C79\.2%2C21\.2/);
+ assert.match(requestedUrl,/layer=city/);
+ assert.match(requestedUrl,/layer=locality/);
+ assert.equal(requestInit.signal,controller.signal);
+ assert.deepEqual(places[0].extent,[79,21,79.2,21.2]);
+ assert.equal(places[0].category,'bank');
+ assert.equal(places[0].city,'Nagpur');
+ assert.equal(places[0].postcode,'440015');
+});
