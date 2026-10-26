@@ -53,7 +53,7 @@ For the no-build route, use the Free Integration Studio on the homepage to gener
 - Five switchable hosted vector-map styles
 - Debounced search-as-you-type with explicit selection from geocoded results
 - Optional city/area scope, branch disambiguation and one-click directions from a selected place
-- Category browsing for banks/ATMs, food, shopping, healthcare, schools, hotels and landmarks
+- Category browsing for banks/ATMs, food, shopping, healthcare, schools, hotels and landmarks, with visible-map nearby result lists ranked by straight-line distance, duplicate suppression, and click-to-route actions
 - Browser geolocation
 - Driving, walking and cycling previews with route alternatives, turn steps, distance and duration estimates
 - Route and marker helpers
