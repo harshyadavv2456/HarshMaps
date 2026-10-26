@@ -8,7 +8,7 @@ export const OVERTURE_STAC_URL = 'https://stac.overturemaps.org/catalog.json';
 export const OVERTURE_TILES_BASE = 'https://overturemaps-extras-us-west-2.s3.us-west-2.amazonaws.com/tiles';
 
 export function validRelease(release) {
-  if (typeof release !== 'string' || !/^\\d{4}-\\d{2}-\\d{2}\\.\\d+$/.test(release)) return false;
+  if (typeof release !== 'string' || !/^\d{4}-\d{2}-\d{2}\.\d+$/.test(release)) return false;
   const date = release.slice(0, 10);
   const parsed = new Date(date + 'T00:00:00Z');
   return Number.isFinite(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === date;
