@@ -2,7 +2,7 @@ const MODEL_ID = 'onnx-community/SmolLM2-135M-Instruct-ONNX-GQA';
 const RUNTIME_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
 
 const RULES = [
-  { id:'banks',title:'Banks & ATMs',icon:'▤',pattern:/\b(?:atm|atms|cash machine|cash withdrawal|bank|banks|branch|branches|sbi|state bank of india|hdfc|icici|axis bank|kotak|pnb|canara bank|bank of baroda)\b/i },
+  { id:'banks',title:'Banks & ATMs',icon:'▤',pattern:/\b(?:atm|atms|cash machine|cash withdrawal|withdraw cash|withdraw money|bank|banks|branch|branches|sbi|state bank of india|hdfc|icici|axis bank|kotak|pnb|canara bank|bank of baroda)\b/i },
   { id:'health',title:'Healthcare',icon:'+',pattern:/\b(?:hospital|clinic|doctor|dentist|pharmacy|chemist|gynecologist|gynaecologist|urologist|ivf|fertility clinic|diagnostic lab|pathology lab|urgent care)\b/i },
   { id:'transport',title:'Transport & charging',icon:'↗',pattern:/\b(?:airport|railway station|train station|metro station|bus station|bus stand|bus stop|petrol pump|gas station|fuel station|ev charging|charging station)\b/i },
   { id:'food',title:'Food & drink',icon:'♨',pattern:/\b(?:restaurant|food|eatery|dining|dinner|lunch|breakfast|biryani|pizza|burger|dhaba|street food|tiffin|mess|vegetarian|veg food|vegan|non veg|cafe|coffee shop|bakery|sweet shop|ice cream|fast food|food court)\b/i },
@@ -43,7 +43,7 @@ function findLocation(query) {
 function ruleFor(q){return RULES.find(rule=>rule.pattern.test(q))||null}
 function brandFor(q){return BRANDS.find(([pattern])=>pattern.test(q))?.[1]||''}
 function categoryQuery(rule,q,brand){
-  if(brand){const sub=/\batms?\b|\bcash machine\b/i.test(q)?' ATM':/\bbranches?\b/i.test(q)?' branch':/\bbanks?\b/i.test(q)?' bank':'';return brand+sub}
+  if(brand){const sub=/\batms?\b|\bcash machine\b/i.test(q)?' ATM':/\bbranches?\b/i.test(q)?' branch':/\bbanks?\b/i.test(q)&&!/\bbank\b/i.test(brand)?' bank':'';return brand+sub}
   if(!rule)return '';
   if(rule.id==='food'){
     if(/\bvegan\b/i.test(q))return 'vegan restaurants';
