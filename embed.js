@@ -1,5 +1,5 @@
 import { HarshMaps } from './sdk/harshmaps.js';
-import { searchPlacesResilient } from './sdk/search-provider.js';
+import { searchPlacesResilient } from './sdk/search-provider.js?v=20261026-2';
 import { addOverturePlaces, bindOverturePlacePopups, validOvertureRelease, setOverturePlacesVisible } from './sdk/places-layer.js';
 
 function withImportTimeout(promise, milliseconds, label) {
