@@ -406,6 +406,11 @@ function showResults(places,options={}){
    if(place.recommendationBadge){
      const badge=document.createElement('span');badge.className='result-recommendation';badge.textContent=place.recommendationBadge;text.append(badge);
    }
+   if(Array.isArray(place.recommendationReasons)&&place.recommendationReasons.length){
+     const reasons=document.createElement('small');reasons.className='result-recommendation-reasons';
+     reasons.textContent=place.recommendationReasons.slice(0,3).map(value=>value==='Notability signal in map data'?'Notability signal':value).join(' · ');
+     text.append(reasons);
+   }
    if(Number.isFinite(place.distanceMeters)){
      const distance=document.createElement('span');distance.className='result-distance';distance.textContent=formatDistance(place.distanceMeters)+' straight-line';text.append(distance);
    }
@@ -526,6 +531,11 @@ function renderSearchSuggestions(places,query,options={}){
    const name=document.createElement('strong');name.textContent=place.name||place.label||'Unnamed place';
    const detail=document.createElement('small');detail.textContent=placeContext(place)||place.label||place.category||'Place result';
    copy.append(name,detail);
+   if(Array.isArray(place.recommendationReasons)&&place.recommendationReasons.length){
+     const reason=document.createElement('small');reason.className='search-suggestion-reason';
+     reason.textContent=place.recommendationReasons.slice(0,2).map(value=>value==='Notability signal in map data'?'Notability signal':value).join(' · ');
+     copy.append(reason);
+   }
    const badgeText=place.recommendationBadge||(index===0?'Recommended':'');
    if(badgeText){const badge=document.createElement('span');badge.className='search-suggestion-badge';badge.textContent=badgeText;copy.append(badge)}
    const distance=document.createElement('span');distance.className='search-suggestion-distance';
