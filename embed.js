@@ -5,7 +5,9 @@ const params = new URLSearchParams(window.location.search);
 const styles = HarshMaps.styles;
 const $ = (selector) => document.querySelector(selector);
 const numberParam = (name, fallback, min, max) => {
-  const value = Number(params.get(name));
+  const raw = params.get(name);
+  if (raw === null || raw.trim() === '') return fallback;
+  const value = Number(raw);
   return Number.isFinite(value) && value >= min && value <= max ? value : fallback;
 };
 const boolParam = (name, fallback) => {
