@@ -315,6 +315,7 @@ let lastNominatimStartedAt = 0;
 // Nominatim's public server asks clients to stay at or below one request per second.
 // Keep explicit submitted lookups serialized and apply a small margin between starts.
 async function searchNominatimThrottled(query, options = {}) {
+  if (options.live) throw new Error('Nominatim autocomplete is disabled by policy.');
   const previous = nominatimQueue;
   let release;
   const slot = new Promise(resolve => { release = resolve; });
@@ -473,7 +474,7 @@ export async function searchPlacesResilient(query, options = {}) {
     nominatimAttemptedForLocation = true;
     try {
       const locations = await searchNominatimThrottled(locationQuery, {
-        limit: 5, signal: options.signal, fetchImpl: options.fetchImpl,
+        limit: 5, signal: options.signal, fetchImpl: options.fetchImpl, live,
         countryCode: options.countryCode
       });
       if (locations.length) {
@@ -538,7 +539,7 @@ export async function searchPlacesResilient(query, options = {}) {
   if (!combined.length && allowNominatimFallback && !nominatimAttemptedForLocation) {
     try {
       nominatimPlaces = await searchNominatimThrottled(effectiveQuery, {
-        limit: options.limit || 10, signal: options.signal,
+        limit: options.limit || 10, signal: options.signal, live,
         fetchImpl: options.fetchImpl, countryCode: options.countryCode
       });
     } catch (error) {
