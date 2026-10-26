@@ -164,3 +164,15 @@
 .route-alternative:hover{border-color:#c6c1f8}
 
 #map-loader.failed{max-width:min(360px,calc(100% - 24px));line-height:1.5;text-align:center;white-space:normal;padding:14px 16px}#map-loader.failed i{display:none}
+
+/* Nearby results generated from the currently visible Overture map tiles. */
+.nearby-results-container{margin-top:12px;padding-top:12px;border-top:1px solid #ececf3}
+.nearby-results-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.nearby-results-heading strong{font-size:11px;color:#303347}
+.nearby-results-heading span{font-size:9px;font-variant-numeric:tabular-nums;color:#7267ee;background:#f0eeff;border-radius:5px;padding:3px 6px}
+.nearby-results-note{margin:7px 0 9px;color:#8b8e9d;font-size:9px;line-height:1.55}
+.nearby-result-card{padding:10px 5px}
+.nearby-result-card[aria-current=true]{background:#f6f4ff}
+.nearby-results-empty{padding:12px;border:1px dashed #e3e4ed;border-radius:8px;background:#fafaff;color:#777b8c;font-size:10px;line-height:1.6}
+.nearby-results-retry{margin-top:8px;padding:8px 10px;border:1px solid #dcd7ff;border-radius:6px;background:#fff;color:#6254e8;font-size:9px;font-weight:800}
+.nearby-results-retry:hover{background:#f5f2ff}
