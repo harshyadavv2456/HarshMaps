@@ -64,7 +64,7 @@ function showCategoryBrowseAction(category){
    setOverturePlaceCategory(map,category.id);
    setOverturePlacesVisible(map,true);
    refreshPlacesLayer();
-   const tab=$('.tab').find(item=>item.dataset.panel==='places-panel');
+   const tab=$$('.tab').find(item=>item.dataset.panel==='places-panel');
    if(tab)tab.click();
    if(selectedSearchArea&&Array.isArray(selectedSearchArea.coordinates)){
      map.flyTo({center:selectedSearchArea.coordinates,zoom:Math.max(13,map.getZoom()),speed:1.1,essential:true});
@@ -87,7 +87,7 @@ function offerDirectionsTo(place){
  copy.append(title,details);
  const button=document.createElement('button');button.type='button';button.className='selected-place-route';button.textContent='Plan route →';
  button.addEventListener('click',()=>{
-   const tab=$('.tab').find(item=>item.dataset.panel==='directions-panel');
+   const tab=$$('.tab').find(item=>item.dataset.panel==='directions-panel');
    if(tab)tab.click();
    routeSelections.to=place;
    $('#route-to').value=place.label||place.name;
