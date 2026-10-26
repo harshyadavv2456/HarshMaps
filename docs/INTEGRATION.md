@@ -135,7 +135,9 @@ if (places[0]) {
 
 The public default uses the Photon demo endpoint. Its operator asks for reasonable use and provides no availability guarantee. Search is deliberately wired to explicit submission, not each keystroke. Do not treat the public endpoint as production search infrastructure.
 
-## Get driving directions
+## Get driving directions (SDK default)
+
+The explorer additionally supports walking and cycling using public FOSSGIS-hosted OSRM profiles. See [Providers and production readiness](./PROVIDERS.md#routing--osrm-public-demo-profiles) for the mode endpoints and current use restrictions.
 
 ~~~js
 const route = await HarshMaps.getRoute(
