@@ -28,3 +28,10 @@ test('map startup has a raster fallback and terminal error state', async () => {
   assert.match(source, /map\.setStyle\(RASTER_FALLBACK_STYLE\)/);
   assert.match(source, /Map services did not respond/);
 });
+
+test('the main search handler exists and the search input exposes its dropdown', async () => {
+  const source = await readFile(appPath, 'utf8');
+  assert.match(source, /async function search\\(query,options=\\{\\}\\)/);
+  assert.match(source, /function renderSearchSuggestions\\(/);
+  assert.match(source, /search\\(\\$\\('#place-query'\\)\\.value,\\{live:false\\}\\)/);
+});
