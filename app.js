@@ -88,24 +88,24 @@ if (embedOptionsForm) {
   function sdkExample(c) {
     const label = JSON.stringify(c.label || 'Pinned location');
     const searchMarkup = c.search
-      ? '<form id="harshmaps-search" style="display:flex;gap:8px;margin-bottom:8px"><input id="harshmaps-query" placeholder="Search a place" style="flex:1;min-width:0;padding:9px;border:1px solid #d7dbe4;border-radius:6px"><button style="padding:9px 12px">Search</button></form>\\n'
+      ? '<form id="harshmaps-search" style="display:flex;gap:8px;margin-bottom:8px"><input id="harshmaps-query" placeholder="Search a place" style="flex:1;min-width:0;padding:9px;border:1px solid #d7dbe4;border-radius:6px"><button style="padding:9px 12px">Search</button></form>\n'
       : '';
     const markerCode = c.marker
-      ? "map.once('load', () => HarshMaps.addMarker(maplibregl, map, [" + c.lng + ', ' + c.lat + "], { label: " + label + " }));\\n"
+      ? "map.once('load', () => HarshMaps.addMarker(maplibregl, map, [" + c.lng + ', ' + c.lat + "], { label: " + label + " }));\n"
       : '';
     const locateCode = c.locate
-      ? "map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: false }), 'top-right');\\n"
+      ? "map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: false }), 'top-right');\n"
       : '';
     const searchCode = c.search
-      ? "document.getElementById('harshmaps-search').addEventListener('submit', async (event) => {\\n  event.preventDefault();\\n  try {\\n    const places = await HarshMaps.searchPlaces(document.getElementById('harshmaps-query').value);\\n    if (places[0]) { map.flyTo({ center: places[0].coordinates, zoom: 14 }); HarshMaps.addMarker(maplibregl, map, places[0].coordinates, { label: places[0].name }); }\\n  } catch (error) { console.error('HarshMaps search failed', error); }\\n});\\n"
+      ? "document.getElementById('harshmaps-search').addEventListener('submit', async (event) => {\n  event.preventDefault();\n  try {\n    const places = await HarshMaps.searchPlaces(document.getElementById('harshmaps-query').value);\n    if (places[0]) { map.flyTo({ center: places[0].coordinates, zoom: 14 }); HarshMaps.addMarker(maplibregl, map, places[0].coordinates, { label: places[0].name }); }\n  } catch (error) { console.error('HarshMaps search failed', error); }\n});\n"
       : '';
-    return '<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.css">\\n' +
-      searchMarkup + '<div id="harshmaps-map" style="width:100%;height:' + c.height + 'px"></div>\\n' +
-      '<script type="module">\\n' +
-      "import * as maplibregl from 'https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.mjs';\\n" +
-      "import { HarshMaps } from 'https://cdn.jsdelivr.net/gh/harshyadavv2456/HarshMaps@main/sdk/harshmaps.js';\\n" +
+    return '<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.css">\n' +
+      searchMarkup + '<div id="harshmaps-map" style="width:100%;height:' + c.height + 'px"></div>\n' +
+      '<script type="module">\n' +
+      "import * as maplibregl from 'https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.mjs';\n" +
+      "import { HarshMaps } from 'https://cdn.jsdelivr.net/gh/harshyadavv2456/HarshMaps@main/sdk/harshmaps.js';\n" +
       "const map = HarshMaps.createMap(maplibregl, 'harshmaps-map', { style: HarshMaps.styles." + c.style +
-      ', center: [' + c.lng + ', ' + c.lat + '], zoom: ' + c.zoom + ' });\\n' +
+      ', center: [' + c.lng + ', ' + c.lat + '], zoom: ' + c.zoom + ' });\n' +
       markerCode + locateCode + searchCode + '</script>';
   }
   function updateEmbedBuilder() {
