@@ -272,6 +272,7 @@ function routeSummary(route,modeLabel='Driving'){
    stat.append(small,strong);meta.append(stat);
  });
  summary.append(heading,meta);box.append(summary);
+ const attribution=document.createElement('p');attribution.className='route-attribution';attribution.append(document.createTextNode('Route data: '));const sourceLink=document.createElement('a');sourceLink.href='https://project-osrm.org/';sourceLink.target='_blank';sourceLink.rel='noreferrer';sourceLink.textContent='OSRM';attribution.append(sourceLink,document.createTextNode(' · OpenStreetMap-based public demo. Best-effort only; not guaranteed live navigation.'));box.append(attribution);
  const alternatives=Array.isArray(route.alternatives)?route.alternatives:[];
  if(alternatives.length){
    const altHead=document.createElement('div');altHead.className='steps-heading';altHead.textContent='ALTERNATIVE ROUTES';box.append(altHead);
