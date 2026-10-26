@@ -14,12 +14,12 @@ After GitHub Pages has been enabled and the site successfully deployed, the embe
 https://harshyadavv2456.github.io/HarshMaps/embed.html
 ~~~
 
-Use the **Free Integration Studio** on the HarshMaps homepage to choose a center, zoom, style, search, location and marker settings. It generates copy-ready code and a live preview. A basic example:
+Use the **Free Integration Studio** on the HarshMaps homepage to choose a center, zoom, style, search, location, marker and worldwide places settings. It generates copy-ready code and a live preview. A basic example:
 
 ~~~html
 <iframe
   title="HarshMaps interactive map"
-  src="https://harshyadavv2456.github.io/HarshMaps/embed.html?lat=19.076&lng=72.8777&zoom=10&style=liberty&search=true&locate=true&marker=true&label=Mumbai"
+  src="https://harshyadavv2456.github.io/HarshMaps/embed.html?lat=19.076&lng=72.8777&zoom=10&style=liberty&search=true&locate=true&marker=true&places=true&label=Mumbai"
   width="100%"
   height="420"
   style="border:0;border-radius:12px;overflow:hidden"
@@ -43,7 +43,14 @@ Paste this into a custom HTML block on a static site, landing page, blog, WordPr
 | locate | true / false | true | Show the device-location button |
 | controls | true / false | true | Show zoom and compass controls |
 | marker | true / false | false | Place a pin at the initial center |
+| places | true / false | true | Show the experimental global points-of-interest overlay |
 | label | text | empty | Optional popup label for the marker |
+
+## Worldwide places overlay
+
+The standalone embed and main explorer can display an Overture Places vector-tile layer. It requests only the tiles intersecting the current map view, instead of downloading the global data file into the browser. The current Overture release is recorded at `data/overture-release.json`; `.github/workflows/refresh-places.yml` checks the official STAC catalog every 15 minutes and publishes a new pointer only after the upstream release changes.
+
+**Important freshness distinction:** the workflow polls every 15 minutes, but Overture's Places dataset is released monthly. It does not crawl every listing every 15 minutes. The currently linked Overture PMTiles are published for data inspection; Overture explicitly says not to use those public tiles in production because layer schemas, fields, and availability can change. For production, build and host your own stable tiles from Overture's source GeoParquet data, or operate a controlled places API. See the [official Overture tile guidance](https://docs.overturemaps.org/getting-data/cloud-sources/).
 
 ## React, Next.js, Vite and custom web apps
 
