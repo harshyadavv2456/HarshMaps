@@ -296,7 +296,7 @@ function showCategoryBrowseAction(category,query=''){
    ?'Show mapped '+category.title.toLowerCase()+' near '+(selectedSearchArea.name||selectedSearchArea.label)+'.'
    :queryLocation
      ?'Move to '+queryLocation+' and show labeled '+category.title.toLowerCase()+'.'
-     :/\b(?:near me|nearby|around me)\b/i.test(query)
+     :/\b(?:near me|around me)\b/i.test(query)
        ?'Use your device location to find labeled '+category.title.toLowerCase()+' nearby.'
        :'Show mapped '+category.title.toLowerCase()+' near the current map view. Add Search In to focus another city.';
  text.append(title,details);
@@ -307,7 +307,9 @@ function showCategoryBrowseAction(category,query=''){
      const located=await selectCategoryLocation(locationQuery);
      if(!located){status('Could not resolve '+locationQuery,true);toast('Could not find that city or area. Try using Search In.');return}
    }
-   await showNearbyCategoryResults(category,{useDeviceLocation:!selectedSearchArea&&/\b(?:near me|nearby|around me)\b/i.test(query)});
+   const deviceLocationQuery=!locationQuery&&/\b(?:near me|around me)\b/i.test(query);
+   if(deviceLocationQuery&&selectedSearchArea)setSearchArea(null);
+   await showNearbyCategoryResults(category,{useDeviceLocation:deviceLocationQuery});
  });
  card.append(icon,text,action);box.prepend(card);
 }
