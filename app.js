@@ -179,11 +179,122 @@ function duration(s){const min=Math.max(1,Math.round(s/60));if(min<60)return min
 function instructionText(step){const m=step.maneuver||{},type=String(m.type||'continue').replace(/_/g,' '),modifier=String(m.modifier||'').replace(/_/g,' ');const phrases={depart:'Start driving',arrive:'Arrive at destination',turn:'Turn',merge:'Merge',fork:'At the fork',continue:'Continue','new name':'Continue','on ramp':'Take the ramp','off ramp':'Exit the ramp','end of road':'At the end of the road',roundabout:'Enter the roundabout',rotary:'Enter the rotary','roundabout turn':'Take the roundabout exit',notification:'Continue'};let phrase=phrases[type]||type.charAt(0).toUpperCase()+type.slice(1);if(modifier&&type!=='depart'&&type!=='arrive'&&type!=='notification')phrase+=' '+modifier;if(step.name)phrase+=' onto '+step.name;return phrase}
 function routeSummary(route){const box=$('#route-result');box.replaceChildren();const w=document.createElement('div');w.className='route-summary';const h=document.createElement('div');h.className='route-summary-head';const d=document.createElement('strong');d.textContent=duration(route.duration);const sub=document.createElement('span');sub.textContent='Estimated driving time · demo router';h.append(d,sub);const meta=document.createElement('div');meta.className='route-summary-meta';[['Route distance',distance(route.distance)],['Travel mode','Driving']].forEach(([t,v])=>{const stat=document.createElement('div');stat.className='route-stat';const small=document.createElement('small');small.textContent=t;const strong=document.createElement('strong');strong.textContent=v;stat.append(small,strong);meta.append(stat)});w.append(h,meta);box.append(w);const steps=Array.isArray(route.steps)?route.steps:[];if(steps.length){const heading=document.createElement('div');heading.className='steps-heading';heading.textContent='ROUTE STEPS';box.append(heading);const list=document.createElement('ol');list.className='directions-steps';steps.slice(0,40).forEach((step,index)=>{const row=document.createElement('li');const number=document.createElement('span');number.className='step-number';number.textContent=String(index+1);const body=document.createElement('span');body.className='step-copy';const title=document.createElement('strong');title.textContent=instructionText(step);const detail=document.createElement('small');detail.textContent=distance(step.distance||0)+(step.duration?' · '+duration(step.duration):'');body.append(title,detail);row.append(number,body);list.append(row)});box.append(list)}}
 function parsePinnedLocation(input){const m=String(input||'').trim().match(/^@\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);if(!m)return null;const lat=Number(m[1]),lon=Number(m[2]);if(!Number.isFinite(lat)||!Number.isFinite(lon)||lat < -90||lat > 90||lon < -180||lon > 180)throw Error('Coordinates must use @latitude, longitude with latitude in ±90 and longitude in ±180.');return{id:'coordinate:'+lat+','+lon,name:'Pinned coordinates',label:lat.toFixed(5)+', '+lon.toFixed(5),coordinates:[lon,lat],city:'',country:''}}
-async function findPlace(q,c){const pinned=parsePinnedLocation(q);if(pinned)return[pinned];return HarshMaps.searchPlaces(q,{baseUrl:HarshMaps.providers.photon,limit:1,lat:c.lat,lon:c.lng})}
-$('#route-form').addEventListener('submit',async e=>{e.preventDefault();const from=$('#route-from').value.trim(),to=$('#route-to').value.trim();if(!from||!to){toast('Add both a start and a destination.');return}const btn=$('#route-submit');btn.disabled=true;btn.innerHTML='Finding route…';$('#route-result').innerHTML='<div class="route-note"><b>↗</b><div><strong>Planning your trip</strong><p>Resolving places and requesting the route.</p></div></div>';status('Planning route…');
- try{const c=map.getCenter(),o=(await findPlace(from,c))[0];if(!o)throw Error('Could not find the starting point: '+from);await new Promise(r=>setTimeout(r,1100));const d=(await findPlace(to,c))[0];if(!d)throw Error('Could not find the destination: '+to);const route=await HarshMaps.getRoute(o.coordinates,d.coordinates,{baseUrl:HarshMaps.providers.osrm,profile:'driving',alternatives:true});clearMarkers(searchMarkers);clearMarkers(routeMarkers);marker(o,false,true);marker(d,true,true);HarshMaps.drawRoute(map,route.feature,{color:'#675bf4',casingColor:'#ffffff'});latestRoute={feature:route.feature,options:{color:'#675bf4',casingColor:'#ffffff'}};const bounds=new maplibregl.LngLatBounds();route.geometry.coordinates.forEach(p=>bounds.extend(p));map.fitBounds(bounds,{padding:{top:100,right:90,bottom:90,left:90},maxZoom:15,duration:1000});labelView('Route preview',(o.name+' → '+d.name).toUpperCase());routeSummary(route);status('Route ready · demo routing data')}
- catch(err){$('#route-result').replaceChildren();const note=document.createElement('div');note.className='route-note';const icon=document.createElement('b');icon.textContent='!';const text=document.createElement('div');const strong=document.createElement('strong');strong.textContent='Route unavailable';const p=document.createElement('p');p.textContent=err.message||'The routing service could not calculate a route.';text.append(strong,p);note.append(icon,text);$('#route-result').append(note);status('Routing provider unavailable',true);toast('The public routing demo may be busy or unsupported for this area.')}
- finally{btn.disabled=false;btn.innerHTML='Find route <span>→</span>'}});
+const routeSelections={from:null,to:null};
+const routeSearchState={
+ from:{timer:null,controller:null,requestId:0},
+ to:{timer:null,controller:null,requestId:0}
+};
+function hideRouteSuggestions(field){
+ const box=$('#route-'+field+'-suggestions');box.hidden=true;box.replaceChildren();
+}
+function showRouteSuggestions(field,places,message=''){
+ const box=$('#route-'+field+'-suggestions');box.replaceChildren();
+ if(!places.length){
+   if(message){const empty=document.createElement('div');empty.className='suggestions-message';empty.textContent=message;box.append(empty);box.hidden=false}
+   else box.hidden=true;
+   return;
+ }
+ places.forEach(place=>{
+   const btn=document.createElement('button');btn.type='button';btn.className='route-suggestion';
+   const icon=document.createElement('span');icon.className='route-suggestion-icon';icon.textContent='⌖';
+   const copy=document.createElement('span');copy.className='route-suggestion-copy';
+   const name=document.createElement('strong');name.textContent=place.name||place.label;
+   const address=document.createElement('small');address.textContent=placeContext(place)||place.label||'Place result';
+   copy.append(name,address);btn.append(icon,copy);
+   btn.addEventListener('click',()=>{
+     routeSelections[field]=place;
+     $('#route-'+field).value=place.label||place.name;
+     hideRouteSuggestions(field);
+     status((field==='from'?'Start':'Destination')+' selected: '+(place.name||place.label));
+   });
+   box.append(btn);
+ });
+ box.hidden=false;
+}
+async function searchRouteSuggestions(field,query){
+ const state=routeSearchState[field];
+ if(state.controller)state.controller.abort();
+ state.controller=new AbortController();const requestId=++state.requestId;
+ const input=$('#route-'+field);
+ const box=$('#route-'+field+'-suggestions');
+ const current=map.getCenter();
+ const selectedOrigin=routeSelections.from&&field==='to'?routeSelections.from.coordinates:null;
+ const bias=selectedOrigin||[current.lng,current.lat];
+ box.replaceChildren();const wait=document.createElement('div');wait.className='suggestions-message';wait.textContent='Finding matching places…';box.append(wait);box.hidden=false;
+ try{
+   const places=await HarshMaps.searchPlaces(query,{baseUrl:HarshMaps.providers.photon,limit:6,lat:bias[1],lon:bias[0],zoom:11,locationBiasScale:0.35,signal:state.controller.signal});
+   if(requestId!==state.requestId||input.value.trim()!==query)return;
+   showRouteSuggestions(field,places,places.length?'':'No matches. Try adding a city, state or street.');
+ }catch(error){
+   if(error&&error.name==='AbortError')return;
+   if(requestId!==state.requestId)return;
+   showRouteSuggestions(field,[],'Suggestions unavailable. Check the location text and try again.');
+ }
+}
+['from','to'].forEach(field=>{
+ $('#route-'+field).addEventListener('input',()=>{
+   routeSelections[field]=null;
+   const state=routeSearchState[field];clearTimeout(state.timer);
+   if(state.controller)state.controller.abort();
+   const query=$('#route-'+field).value.trim();
+   if(query.length<3||query.startsWith('@')){hideRouteSuggestions(field);return}
+   state.timer=setTimeout(()=>searchRouteSuggestions(field,query),420);
+ });
+ $('#route-'+field).addEventListener('focus',()=>{
+   const query=$('#route-'+field).value.trim();
+   if(query.length>=3&&!routeSelections[field])searchRouteSuggestions(field,query);
+ });
+ $('#route-'+field).addEventListener('keydown',event=>{
+   if(event.key==='Escape')hideRouteSuggestions(field);
+ });
+});
+document.addEventListener('click',event=>{
+ if(!event.target.closest('#route-form')){hideRouteSuggestions('from');hideRouteSuggestions('to')}
+});
+async function resolveRouteEndpoint(field,text){
+ const pinned=parsePinnedLocation(text);
+ if(pinned)return pinned;
+ const selected=routeSelections[field];
+ if(selected&&(text===selected.label||text===selected.name))return selected;
+ const c=map.getCenter();
+ const places=await HarshMaps.searchPlaces(text,{baseUrl:HarshMaps.providers.photon,limit:6,lat:c.lat,lon:c.lng,zoom:11,locationBiasScale:0.35});
+ if(!places.length)throw Error('Could not find '+(field==='from'?'the starting point':'the destination')+'. Try a full address or add a city.');
+ if(places.length===1)return places[0];
+ showRouteSuggestions(field,places);
+ throw Error('Choose the exact '+(field==='from'?'starting point':'destination')+' from the suggestions. This prevents routing to the wrong city.');
+}
+$('#route-form').addEventListener('submit',async event=>{
+ event.preventDefault();
+ const fromText=$('#route-from').value.trim(),toText=$('#route-to').value.trim();
+ if(!fromText||!toText){toast('Add both a start and a destination.');return}
+ const button=$('#route-submit');button.disabled=true;button.textContent='Finding route…';
+ const result=$('#route-result');result.replaceChildren();
+ const loading=document.createElement('div');loading.className='route-note';
+ const loadingIcon=document.createElement('b');loadingIcon.textContent='↗';
+ const loadingText=document.createElement('div');const loadingTitle=document.createElement('strong');loadingTitle.textContent='Planning your trip';
+ const loadingCopy=document.createElement('p');loadingCopy.textContent='Resolving selected places and requesting driving directions.';
+ loadingText.append(loadingTitle,loadingCopy);loading.append(loadingIcon,loadingText);result.append(loading);status('Planning route…');
+ try{
+   const origin=await resolveRouteEndpoint('from',fromText);
+   const destination=await resolveRouteEndpoint('to',toText);
+   const route=await HarshMaps.getRoute(origin.coordinates,destination.coordinates,{baseUrl:HarshMaps.providers.osrm,profile:'driving',alternatives:true});
+   clearMarkers(searchMarkers);clearMarkers(routeMarkers);
+   marker(origin,false,true);marker(destination,true,true);
+   HarshMaps.drawRoute(map,route.feature,{color:'#675bf4',casingColor:'#ffffff'});
+   latestRoute={feature:route.feature,options:{color:'#675bf4',casingColor:'#ffffff'}};
+   const bounds=new maplibregl.LngLatBounds();route.geometry.coordinates.forEach(point=>bounds.extend(point));
+   map.fitBounds(bounds,{padding:{top:100,right:90,bottom:90,left:90},maxZoom:15,duration:1000});
+   labelView('Route preview',(origin.name||origin.label)+' → '+(destination.name||destination.label));
+   routeSummary(route);status('Route ready · driving directions');
+ }catch(error){
+   result.replaceChildren();
+   const note=document.createElement('div');note.className='route-note';
+   const icon=document.createElement('b');icon.textContent='!';
+   const copy=document.createElement('div');const title=document.createElement('strong');title.textContent='Route not ready';
+   const message=document.createElement('p');message.textContent=error&&error.message?error.message:'The routing service could not calculate a route.';
+   copy.append(title,message);note.append(icon,copy);result.append(note);status('Route needs attention',true);
+ }finally{button.disabled=false;button.innerHTML='Find route <span>→</span>'}
+});
 $('#swap-route').addEventListener('click',()=>{const x=$('#route-from').value;$('#route-from').value=$('#route-to').value;$('#route-to').value=x});
 function locate(asRouteStart){if(!navigator.geolocation){toast('Geolocation is not supported by this browser.');return}status('Requesting device location…');navigator.geolocation.getCurrentPosition(pos=>{const c=[pos.coords.longitude,pos.coords.latitude];map.flyTo({center:c,zoom:15,speed:1.2,essential:true});if(asRouteStart){$('#route-from').value='@'+c[1].toFixed(5)+', '+c[0].toFixed(5);toast('Current coordinates added as route start.')}else{clearMarkers(searchMarkers);marker({coordinates:c,name:'Your location'});labelView('Your location','DEVICE LOCATION · PERMISSION GRANTED')}status('Location found')},()=>{status('Location permission unavailable',true);toast('Could not access location. Check browser permissions.')},{enableHighAccuracy:true,timeout:10000})}
 $('#use-current-location').addEventListener('click',()=>locate(true));$('#locate-me').addEventListener('click',()=>locate(false));
