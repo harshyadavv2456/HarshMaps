@@ -71,6 +71,34 @@ test('nearby OpenStreetMap results rescue search when Photon fails', async () =>
   assert.equal(result.places.every(place => Number.isFinite(place.distanceMeters)), true);
 });
 
+test('city resolution is not returned as a business and Nominatim is queried once', async () => {
+  let nominatimCalls = 0;
+  const fetchImpl = async url => {
+    const parsed = new URL(url);
+    if (parsed.hostname === 'nominatim.openstreetmap.org') {
+      nominatimCalls++;
+      return response([{
+        place_id: 9, name: 'Nagpur', display_name: 'Nagpur, Maharashtra, India',
+        lat: '21.1458', lon: '79.0882', type: 'city',
+        address: { city: 'Nagpur', state: 'Maharashtra', country: 'India' }
+      }]);
+    }
+    return response({}, 503);
+  };
+  const result = await searchPlacesResilient('SBI in Nagpur', {
+    center: [79.0882, 21.1458],
+    live: false,
+    allowNominatimFallback: true,
+    includeNearby: true,
+    overpassEndpoints: ['https://overpass.test/api/interpreter'],
+    overpassTimeoutMs: 100,
+    photonSearch: async () => { throw new Error('Photon blocked'); },
+    fetchImpl
+  });
+  assert.equal(nominatimCalls, 1);
+  assert.equal(result.locationResolution?.name, 'Nagpur');
+  assert.equal(result.places.length, 0);
+});
 test('autocomplete never falls through to public Nominatim', async () => {
   let nominatimCalls = 0;
   const fetchImpl = async url => {
