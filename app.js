@@ -258,6 +258,12 @@ async function showNearbyCategoryResults(category,options={}){
    status('Nearby place lookup unavailable',true);
  }
 }
+function selectedAreaMatchesLocation(locationQuery){
+ if(!selectedSearchArea||!locationQuery)return false;
+ const queryLead=String(locationQuery).split(',')[0].trim().toLowerCase();
+ const selectedLead=String(selectedSearchArea.name||selectedSearchArea.label||'').split(',')[0].trim().toLowerCase();
+ return Boolean(queryLead&&selectedLead&&(queryLead===selectedLead||queryLead.startsWith(selectedLead+' ')));
+}
 async function selectCategoryLocation(locationQuery){
  try{
    const current=map.getCenter();
@@ -284,8 +290,9 @@ function showCategoryBrowseAction(category,query=''){
  const icon=document.createElement('span');icon.className='browse-category-icon';icon.textContent=category.icon;
  const text=document.createElement('span');text.className='browse-category-copy';
  const title=document.createElement('strong');title.textContent='Browse '+category.title;
- const queryLocation=selectedSearchArea?'':extractCategoryLocation(query);
- const details=document.createElement('small');details.textContent=selectedSearchArea
+ const queryLocation=extractCategoryLocation(query);
+ const conflictingLocation=Boolean(queryLocation&&selectedSearchArea&&!selectedAreaMatchesLocation(queryLocation));
+ const details=document.createElement('small');details.textContent=selectedSearchArea&&!conflictingLocation
    ?'Show mapped '+category.title.toLowerCase()+' near '+(selectedSearchArea.name||selectedSearchArea.label)+'.'
    :queryLocation
      ?'Move to '+queryLocation+' and show labeled '+category.title.toLowerCase()+'.'
@@ -295,8 +302,8 @@ function showCategoryBrowseAction(category,query=''){
  text.append(title,details);
  const action=document.createElement('button');action.type='button';action.className='browse-category-action';action.textContent='Show on map →';
  action.addEventListener('click',async()=>{
-   const locationQuery=selectedSearchArea?'':extractCategoryLocation(query);
-   if(locationQuery){
+   const locationQuery=extractCategoryLocation(query);
+   if(locationQuery&&!selectedAreaMatchesLocation(locationQuery)){
      const located=await selectCategoryLocation(locationQuery);
      if(!located){status('Could not resolve '+locationQuery,true);toast('Could not find that city or area. Try using Search In.');return}
    }
