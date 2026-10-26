@@ -21,10 +21,27 @@ test('normalizes Photon results and includes street names', async () => {
  assert.match(requestUrl,/q=Nagpur/);assert.deepEqual(places[0].coordinates,[79.08,21.14]);assert.equal(places[0].label,'Nagpur, Wardha Road, India');assert.equal(places[0].id,'osm:42');
  await assert.rejects(()=>HarshMaps.searchPlaces('x'),/at least two characters/);
 });
-test('returns route geometry, metrics, route steps, and validates coordinates', async () => {
+test('returns route geometry, metrics, route steps, alternatives, and validates coordinates', async () => {
  let requestUrl='';
- const route=await HarshMaps.getRoute([79,21],[78,20],{baseUrl:'https://router.example/route/v1',fetchImpl:async url=>{requestUrl=String(url);return{ok:true,json:async()=>({code:'Ok',routes:[{distance:1200,duration:300,geometry:{type:'LineString',coordinates:[[79,21],[78,20]]},legs:[{steps:[{name:'Main Street',distance:1200,duration:300,mode:'driving',maneuver:{type:'depart',location:[79,21]}}]}]}],waypoints:[]})}}});
- assert.match(requestUrl,/\/driving\/79,21;78,20/);assert.equal(route.distance,1200);assert.equal(route.steps[0].name,'Main Street');assert.equal(route.feature.features[0].geometry.type,'LineString');
+ const route=await HarshMaps.getRoute([79,21],[78,20],{
+  baseUrl:'https://router.example/route/v1',
+  alternatives:true,
+  fetchImpl:async url=>{
+   requestUrl=String(url);
+   return{ok:true,json:async()=>({code:'Ok',routes:[
+    {distance:1200,duration:300,geometry:{type:'LineString',coordinates:[[79,21],[78,20]]},legs:[{steps:[{name:'Main Street',distance:1200,duration:300,mode:'driving',maneuver:{type:'depart',location:[79,21]}}]}]},
+    {distance:1500,duration:250,geometry:{type:'LineString',coordinates:[[79,21],[78.5,20.5],[78,20]]},legs:[{steps:[{name:'Alternate Avenue',distance:1500,duration:250,mode:'driving',maneuver:{type:'depart',location:[79,21]}}]}]}
+   ],waypoints:[]})};
+  }
+ });
+ assert.match(requestUrl,/\/driving\/79,21;78,20/);
+ assert.match(requestUrl,/alternatives=true/);
+ assert.equal(route.distance,1200);
+ assert.equal(route.steps[0].name,'Main Street');
+ assert.equal(route.feature.features[0].geometry.type,'LineString');
+ assert.equal(route.alternatives[0].distance,1500);
+ assert.equal(route.alternatives[0].steps[0].name,'Alternate Avenue');
+ assert.equal(route.alternatives[0].feature.features[0].geometry.coordinates.length,3);
  await assert.rejects(()=>HarshMaps.getRoute([190,21],[78,20]),/invalid longitude/);
 });
 
