@@ -132,7 +132,7 @@ function showResults(places,options={}){
  });
  const note=document.createElement('div');note.className='search-results-note';
  note.textContent=selectedSearchArea
-   ? 'Showing matches biased to '+(selectedSearchArea.name||selectedSearchArea.label)+'. Choose a specific branch or landmark above.'
+   ? 'Showing matches in or around '+(selectedSearchArea.name||selectedSearchArea.label)+'. Choose a specific branch or landmark above.'
    : 'Multiple cities can have the same business name. Choose a result above, or set Search In to narrow it to a city.';
  box.append(note);
 }
@@ -204,7 +204,7 @@ async function search(query,options={}){
  try{
    const places=await HarshMaps.searchPlaces(queryText,{baseUrl:HarshMaps.providers.photon,limit:10,lat:bias[1],lon:bias[0],zoom:area?12:map.getZoom(),locationBiasScale:area?0.65:0.15,bbox:useAreaExtent?area.extent:undefined,signal:searchController.signal});
    if(requestId!==searchRequestId)return;
-   showResults(places,{message:places.length?'':'No matches'});
+   showResults(places,{message:places.length?'':selectedSearchArea?'No matches in or around '+(selectedSearchArea.name||selectedSearchArea.label)+'. Try another spelling or clear Search In.':'No matching names found. Try another spelling or add a city in Search In.'});
    const category=detectPlaceCategory(q);if(category)showCategoryBrowseAction(category);
    if(!places.length){status(category?'No named matches · browse the category on the map':'No matching places');return}
    status(places.length+' match'+(places.length===1?'':'es')+' · select a result');
@@ -212,6 +212,7 @@ async function search(query,options={}){
    if(error&&error.name==='AbortError')return;
    if(requestId!==searchRequestId)return;
    showResults([],{message:'The public place-search service is unavailable right now. Please try again.'});
+   const category=detectPlaceCategory(q);if(category)showCategoryBrowseAction(category);
    status('Search provider unavailable',true);
  }
 }
