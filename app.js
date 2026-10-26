@@ -127,7 +127,7 @@ function showResults(places,options={}){
      labelView(place.name||'Selected place',[place.city,place.state,place.country].filter(Boolean).join(' · ').toUpperCase()||'SELECTED RESULT');
      status('Showing '+(place.name||place.label));offerDirectionsTo(place);
      $$('.result-card').forEach(item=>item.removeAttribute('aria-current'));btn.setAttribute('aria-current','true');
-     if(innerWidth<=760){$('#control-panel').classList.remove('open');$('#mobile-menu').setAttribute('aria-expanded','false')}
+     // Keep the mobile panel open so the selected place and Plan route action remain available.
    });
    box.append(btn);
  });
