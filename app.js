@@ -15,18 +15,160 @@ function updateZoom(){$('#zoom-status').textContent='ZOOM '+map.getZoom().toFixe
 function labelView(title,subtitle){$('#view-title').textContent=title;$('#view-subtitle').textContent=subtitle||'VECTOR MAP · LIVE TILES'}
 function clearMarkers(list){list.forEach(marker=>marker.remove());list.length=0}
 function marker(place,destination=false,routeMarker=false){const m=HarshMaps.addMarker(maplibregl,map,place.coordinates,{color:destination?'#202434':'#675bf4',label:place.name});(routeMarker||destination?routeMarkers:searchMarkers).push(m);return m}
-function showResults(places){
- const box=$('#search-results');box.replaceChildren();$('#result-count').textContent=String(places.length).padStart(2,'0');
- if(!places.length){const empty=document.createElement('div');empty.className='empty';const icon=document.createElement('b');icon.textContent='⌕';const title=document.createElement('strong');title.textContent='No matching places';const help=document.createElement('span');help.textContent='Try a more specific name, nearby city, or address.';empty.append(icon,title,help);box.append(empty);return}
- places.forEach(place=>{const btn=document.createElement('button');btn.type='button';btn.className='result-card';const pin=document.createElement('span');pin.className='result-pin';pin.textContent='⌖';const text=document.createElement('span');text.className='result-text';const name=document.createElement('strong');name.textContent=place.name||place.label;const meta=document.createElement('small');meta.textContent=place.label||[place.city,place.state,place.country].filter(Boolean).join(', ');text.append(name,meta);const arrow=document.createElement('span');arrow.className='result-arrow';arrow.textContent='↗';btn.append(pin,text,arrow);btn.addEventListener('click',()=>{clearMarkers(searchMarkers);marker(place);map.flyTo({center:place.coordinates,zoom:14,speed:1.15,essential:true});labelView(place.name||'Selected place',(place.city||place.country||'SEARCH RESULT').toUpperCase());if(innerWidth<=760){$('#control-panel').classList.remove('open');$('#mobile-menu').setAttribute('aria-expanded','false')}});box.append(btn)})
+let selectedSearchArea=null;
+let searchTimer=null,searchController=null,searchRequestId=0;
+let areaTimer=null,areaController=null,areaRequestId=0;
+const SEARCH_DEBOUNCE_MS=430;
+function setEmptySearch(message,title='No matching places'){
+ const box=$('#search-results');box.replaceChildren();$('#result-count').textContent='00';
+ const empty=document.createElement('div');empty.className='empty';
+ const icon=document.createElement('b');icon.textContent='⌕';
+ const heading=document.createElement('strong');heading.textContent=title;
+ const help=document.createElement('span');help.textContent=message;
+ empty.append(icon,heading,help);box.append(empty);
 }
-async function search(query){
- const q=String(query||'').trim();if(q.length<2){toast('Enter at least two characters to search.');return}
- $('#place-query').value=q;$('#result-count').textContent='…';$('#search-results').innerHTML='<div class="empty"><strong>Searching places…</strong><span>Querying the configured geocoder.</span></div>';status('Searching places…');
- try{const c=map.getCenter(),places=await HarshMaps.searchPlaces(q,{baseUrl:HarshMaps.providers.photon,limit:6,lat:c.lat,lon:c.lng});showResults(places);if(!places.length){status('No matching places');toast('No matching places. Try another query.');return}clearMarkers(searchMarkers);places.forEach(p=>marker(p));const p=places[0];map.flyTo({center:p.coordinates,zoom:12.5,speed:1.08,essential:true});labelView(p.name||q,(p.city||p.country||'SEARCH RESULT').toUpperCase());status(places.length+' place'+(places.length===1?'':'s')+' found')}
- catch(e){showResults([]);status('Search provider unavailable',true);toast(e.message||'Place search failed. Try again.')}
+function placeContext(place){
+ const parts=[place.street,place.district,place.city,place.state,place.country].filter(Boolean);
+ return parts.filter((v,i,a)=>a.findIndex(x=>String(x).toLowerCase()===String(v).toLowerCase())===i).join(', ');
 }
-$('#search-form').addEventListener('submit',e=>{e.preventDefault();search($('#place-query').value)});
+function showResults(places,options={}){
+ const box=$('#search-results');box.replaceChildren();
+ $('#result-count').textContent=options.busy?'…':String(places.length).padStart(2,'0');
+ if(options.busy){
+   const empty=document.createElement('div');empty.className='empty';
+   const heading=document.createElement('strong');heading.textContent='Finding matches…';
+   const help=document.createElement('span');help.textContent=options.message||'Searching place names and nearby locations.';
+   empty.append(heading,help);box.append(empty);return;
+ }
+ if(!places.length){setEmptySearch(options.message||'Try a more specific name, or add a city in Search In.');return}
+ places.forEach((place,index)=>{
+   const btn=document.createElement('button');btn.type='button';btn.className='result-card';
+   const pin=document.createElement('span');pin.className='result-pin';pin.textContent='⌖';
+   const text=document.createElement('span');text.className='result-text';
+   const name=document.createElement('strong');name.textContent=place.name||place.label;
+   const meta=document.createElement('small');meta.className='result-address';meta.textContent=placeContext(place)||place.label||'Place result';
+   text.append(name,meta);
+   if(place.category&&place.category!=='place'){
+     const kind=document.createElement('span');kind.className='result-kind';kind.textContent=String(place.category).replace(/_/g,' ');text.append(kind);
+   }
+   const arrow=document.createElement('span');arrow.className='result-arrow';arrow.textContent='↗';
+   btn.append(pin,text,arrow);
+   btn.setAttribute('aria-label','Show '+(place.name||place.label)+' on map'+(placeContext(place)?', '+placeContext(place):''));
+   btn.addEventListener('click',()=>{
+     clearMarkers(searchMarkers);marker(place);
+     map.flyTo({center:place.coordinates,zoom:15,speed:1.15,essential:true});
+     labelView(place.name||'Selected place',[place.city,place.state,place.country].filter(Boolean).join(' · ').toUpperCase()||'SELECTED RESULT');
+     status('Showing '+(place.name||place.label));
+     $$('.result-card').forEach(item=>item.removeAttribute('aria-current'));btn.setAttribute('aria-current','true');
+     if(innerWidth<=760){$('#control-panel').classList.remove('open');$('#mobile-menu').setAttribute('aria-expanded','false')}
+   });
+   box.append(btn);
+ });
+ const note=document.createElement('div');note.className='search-results-note';
+ note.textContent=selectedSearchArea
+   ? 'Showing matches biased to '+(selectedSearchArea.name||selectedSearchArea.label)+'. Choose a specific branch or landmark above.'
+   : 'Multiple cities can have the same business name. Choose a result above, or set Search In to narrow it to a city.';
+ box.append(note);
+}
+function setSearchArea(place){
+ selectedSearchArea=place;
+ $('#search-location').value=place?place.label||place.name:'';
+ const chip=$('#selected-search-area');chip.replaceChildren();
+ if(place){
+   const text=document.createElement('span');text.textContent='Searching near '+(place.name||place.label);
+   const clear=document.createElement('button');clear.type='button';clear.textContent='Change';clear.addEventListener('click',clearSearchArea);
+   chip.append(text,clear);chip.hidden=false;
+   $('#search-location').value=place.name||place.label;
+ }else chip.hidden=true;
+ $('#location-suggestions').hidden=true;
+}
+function clearSearchArea(){
+ selectedSearchArea=null;$('#search-location').value='';$('#selected-search-area').hidden=true;
+ if($('#place-query').value.trim().length>=3){clearTimeout(searchTimer);searchTimer=setTimeout(()=>search($('#place-query').value,{live:true}),100)}
+}
+async function searchAreas(query){
+ const q=String(query||'').trim();
+ if(q.length<2){$('#location-suggestions').hidden=true;return}
+ if(areaController)areaController.abort();
+ areaController=new AbortController();const requestId=++areaRequestId;
+ const box=$('#location-suggestions');box.replaceChildren();
+ const msg=document.createElement('div');msg.className='suggestions-message';msg.textContent='Finding cities and areas…';box.append(msg);box.hidden=false;
+ try{
+   const center=map.getCenter();
+   const places=await HarshMaps.searchPlaces(q,{baseUrl:HarshMaps.providers.photon,limit:6,lat:center.lat,lon:center.lng,zoom:5,locationBiasScale:0.1,layers:['city','locality','district','county','state'],signal:areaController.signal});
+   if(requestId!==areaRequestId)return;
+   box.replaceChildren();
+   if(!places.length){const empty=document.createElement('div');empty.className='suggestions-message';empty.textContent='No city or area found. Try including the state or country.';box.append(empty);return}
+   places.forEach(place=>{
+     const btn=document.createElement('button');btn.type='button';btn.className='location-suggestion';
+     const icon=document.createElement('span');icon.className='location-suggestion-icon';icon.textContent='⌖';
+     const copy=document.createElement('span');copy.className='location-suggestion-copy';
+     const title=document.createElement('strong');title.textContent=place.name||place.label;
+     const meta=document.createElement('small');meta.textContent=[place.state,place.country].filter(Boolean).join(', ')||place.label;
+     copy.append(title,meta);btn.append(icon,copy);
+     btn.addEventListener('click',()=>{
+       setSearchArea(place);
+       const term=$('#place-query').value.trim();
+       if(term.length>=2)search(term,{live:true});
+       else $('#search-hint').textContent='Search area selected. Now type the bank, shop or landmark you want to find.';
+     });
+     box.append(btn);
+   });
+ }catch(error){
+   if(error&&error.name==='AbortError')return;
+   if(requestId!==areaRequestId)return;
+   box.replaceChildren();const msg2=document.createElement('div');msg2.className='suggestions-message';msg2.textContent='City suggestions are temporarily unavailable.';box.append(msg2);
+ }
+}
+async function search(query,options={}){
+ const q=String(query||'').trim();
+ if(q.length<2){if(!options.live)toast('Enter at least two characters to search.');return}
+ if(searchController)searchController.abort();
+ searchController=new AbortController();const requestId=++searchRequestId;
+ const box=$('#search-results');
+ const area=selectedSearchArea;
+ const center=map.getCenter();
+ const bias=area&&Array.isArray(area.coordinates)?area.coordinates:[center.lng,center.lat];
+ const queryText=area?[q,area.name||area.label,area.state,area.country].filter(Boolean).join(', '):q;
+ const useAreaExtent=area&&Array.isArray(area.extent)&&area.extent.length===4;
+ showResults([],{busy:true,message:area?'Searching around '+(area.name||area.label)+'…':'Searching across matching place names…'});
+ status('Searching places…');
+ try{
+   const places=await HarshMaps.searchPlaces(queryText,{baseUrl:HarshMaps.providers.photon,limit:10,lat:bias[1],lon:bias[0],zoom:area?12:map.getZoom(),locationBiasScale:area?0.65:0.15,bbox:useAreaExtent?area.extent:undefined,signal:searchController.signal});
+   if(requestId!==searchRequestId)return;
+   showResults(places,{message:places.length?'':'No matches'});
+   if(!places.length){status('No matching places');return}
+   status(places.length+' match'+(places.length===1?'':'es')+' · select a result');
+ }catch(error){
+   if(error&&error.name==='AbortError')return;
+   if(requestId!==searchRequestId)return;
+   showResults([],{message:'The public place-search service is unavailable right now. Please try again.'});
+   status('Search provider unavailable',true);
+ }
+}
+$('#search-form').addEventListener('submit',event=>{event.preventDefault();clearTimeout(searchTimer);search($('#place-query').value,{live:false})});
+$('#place-query').addEventListener('input',()=>{
+ const value=$('#place-query').value.trim();
+ clearTimeout(searchTimer);
+ if(searchController)searchController.abort();
+ if(value.length<3){if(value.length===0)setEmptySearch('Search for a bank, shop, landmark or address. Add a city above to narrow results.','Your next destination');return}
+ searchTimer=setTimeout(()=>search(value,{live:true}),SEARCH_DEBOUNCE_MS);
+});
+$('#search-location').addEventListener('input',()=>{
+ const q=$('#search-location').value.trim();selectedSearchArea=null;$('#selected-search-area').hidden=true;clearTimeout(areaTimer);
+ if(areaController)areaController.abort();
+ if(q.length<2){$('#location-suggestions').hidden=true;return}
+ areaTimer=setTimeout(()=>searchAreas(q),400);
+});
+$('#search-location').addEventListener('keydown',event=>{
+ if(event.key==='Escape'){$('#location-suggestions').hidden=true;$('#search-location').blur()}
+ if(event.key==='Enter'&&!selectedSearchArea){event.preventDefault();searchAreas($('#search-location').value)}
+});
+$('#clear-search-location').addEventListener('click',clearSearchArea);
+document.addEventListener('click',event=>{
+ if(!event.target.closest('.search-area-wrap'))$('#location-suggestions').hidden=true;
+ if(!event.target.closest('#search-results')&&!event.target.closest('#search-form')&&$('#place-query').value.trim().length<3) return;
+});
 $$('[data-query]').forEach(b=>b.addEventListener('click',()=>search(b.dataset.query)));
 $$('.tab').forEach(tab=>tab.addEventListener('click',()=>{$$('.tab').forEach(t=>{const yes=t===tab;t.classList.toggle('active',yes);t.setAttribute('aria-selected',String(yes))});$$('.tool-panel').forEach(p=>{const yes=p.id===tab.dataset.panel;p.classList.toggle('active',yes);p.hidden=!yes})}));
 $$('[data-style]').forEach(b=>b.addEventListener('click',()=>{const name=b.dataset.style;if(!STYLES[name]||name===activeStyle)return;activeStyle=name;$$('.style-choice').forEach(t=>t.classList.toggle('active',t===b));setStatusLabel('Loading '+name+' style…');map.setStyle(STYLES[name]);map.once('style.load',()=>{status(name[0].toUpperCase()+name.slice(1)+' style active');if(latestRoute)HarshMaps.drawRoute(map,latestRoute.feature,latestRoute.options);if(is3D)HarshMaps.set3D(map,true);if(placesEnabled)refreshPlacesLayer()})}));
