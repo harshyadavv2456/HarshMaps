@@ -66,6 +66,7 @@ if (embedOptionsForm) {
       search: $('#embed-search-enabled').checked,
       locate: $('#embed-locate-enabled').checked,
       marker: $('#embed-marker-enabled').checked,
+      places: $('#embed-places-enabled').checked,
       label: $('#embed-label').value.trim().slice(0, 120)
     };
   }
@@ -79,6 +80,7 @@ if (embedOptionsForm) {
     p.set('search', String(c.search));
     p.set('locate', String(c.locate));
     p.set('marker', String(c.marker));
+    p.set('places', String(c.places));
     p.set('controls', 'true');
     if (c.marker && c.label) p.set('label', c.label);
     url.search = p.toString();
@@ -101,6 +103,12 @@ if (embedOptionsForm) {
     const locateCode = c.locate
       ? "map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: false }), 'top-right');\n"
       : '';
+    const placesCode = c.places
+      ? "import { Protocol } from 'https://cdn.jsdelivr.net/npm/pmtiles@4.5.0/+esm';\n" +
+        "import { addOverturePlaces, bindOverturePlacePopups } from 'https://cdn.jsdelivr.net/gh/harshyadavv2456/HarshMaps@main/sdk/places-layer.js';\n" +
+        "const pmtilesProtocol = new Protocol();\nmaplibregl.addProtocol('pmtiles', pmtilesProtocol.tile);\n" +
+        "map.once('load', async () => { try { const response = await fetch('https://harshyadavv2456.github.io/HarshMaps/data/overture-release.json', { cache: 'no-store' }); if (!response.ok) throw new Error('Places release metadata unavailable'); const metadata = await response.json(); addOverturePlaces(map, metadata.release); bindOverturePlacePopups(map, maplibregl); } catch (error) { console.warn('HarshMaps places layer unavailable', error); } });\n"
+      : '';
     const searchCode = c.search
       ? "document.getElementById('harshmaps-search').addEventListener('submit', async (event) => {\n  event.preventDefault();\n  try {\n    const places = await HarshMaps.searchPlaces(document.getElementById('harshmaps-query').value);\n    if (places[0]) { map.flyTo({ center: places[0].coordinates, zoom: 14 }); HarshMaps.addMarker(maplibregl, map, places[0].coordinates, { label: places[0].name }); }\n  } catch (error) { console.error('HarshMaps search failed', error); }\n});\n"
       : '';
@@ -111,7 +119,7 @@ if (embedOptionsForm) {
       "import { HarshMaps } from 'https://cdn.jsdelivr.net/gh/harshyadavv2456/HarshMaps@main/sdk/harshmaps.js';\n" +
       "const map = HarshMaps.createMap(maplibregl, 'harshmaps-map', { style: HarshMaps.styles." + c.style +
       ', center: [' + c.lng + ', ' + c.lat + '], zoom: ' + c.zoom + ' });\n' +
-      markerCode + locateCode + searchCode + '</script>';
+      markerCode + locateCode + placesCode + searchCode + '</script>';
   }
   function updateEmbedBuilder() {
     const c = buildEmbedConfig();
@@ -126,7 +134,7 @@ if (embedOptionsForm) {
     $('#integration-code-language').textContent = embedMode === 'iframe' ? 'HTML · iframe' : 'JavaScript · ESM';
     $('#integration-code-note').textContent = embedMode === 'iframe'
       ? 'Best for WordPress, static pages, landing pages, and any platform that accepts an iframe. In mobile apps, load this same HTTPS URL in a WebView.'
-      : 'For a custom web app using ES modules. For Next.js/Vite/React, install MapLibre through npm and copy the SDK into your source for a production build.';
+      : 'For a custom web app using ES modules. The Places option adds the global Overture preview layer. For Next.js/Vite/React, install MapLibre through npm and copy the SDK into your source for a production build.';
   }
   embedOptionsForm.addEventListener('change', updateEmbedBuilder);
   $$('[data-builder-mode]').forEach((button) => button.addEventListener('click', () => {
