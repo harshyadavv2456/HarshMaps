@@ -8,7 +8,7 @@ const RULES = [
   { id:'food',title:'Food & drink',icon:'♨',pattern:/\b(?:restaurant|food|eatery|dining|dinner|lunch|breakfast|biryani|pizza|burger|dhaba|street food|tiffin|mess|vegetarian|veg food|vegan|non veg|cafe|coffee shop|bakery|sweet shop|ice cream|fast food|food court)\b/i },
   { id:'shopping',title:'Shops & retail',icon:'◇',pattern:/\b(?:shop|store|shopping|supermarket|grocery|mall|department store|clothing|clothes|electronics shop|hardware store|bookshop|bookstore)\b/i },
   { id:'fitness',title:'Fitness & recreation',icon:'◉',pattern:/\b(?:gym|fitness centre|fitness center|yoga studio|swimming pool|sports complex|stadium|sports ground)\b/i },
-  { id:'outdoors',title:'Parks & outdoors',icon:'❋',pattern:/\b(?:park|garden|playground|kids activities|things to do with kids|children|family activities|walking trail|hiking trail|nature reserve|picnic spot)\b/i },
+  { id:'outdoors',title:'Parks & outdoors',icon:'❋',pattern:/\b(?:park|garden|playground|kids|family outing|kids activities|things to do with kids|children|family activities|walking trail|hiking trail|nature reserve|picnic spot)\b/i },
   { id:'education',title:'Schools & universities',icon:'⌂',pattern:/\b(?:school|college|university|coaching class|tuition|library)\b/i },
   { id:'lodging',title:'Hotels & accommodation',icon:'⌑',pattern:/\b(?:hotel|hostel|motel|resort|guest house|guesthouse)\b/i },
   { id:'landmarks',title:'Landmarks & attractions',icon:'⌖',pattern:/\b(?:monument|museum|landmark|attraction|temple|church|mosque|tourist spot|tourist places|places to visit|things to do|historical place|historic site)\b/i },
@@ -59,7 +59,7 @@ function categoryQuery(rule,q,brand){
     if(/\bstreet food\b/i.test(q))return 'street food';
     return 'restaurants';
   }
-  if(rule.id==='banks')return /\batms?\b|\bcash machine\b|\bcash withdrawal\b/i.test(q)?'ATMs':'banks';
+  if(rule.id==='banks')return /\batms?\b|\bcash machine\b|\bcash withdrawal\b|\bwithdraw cash\b|\bwithdraw money\b/i.test(q)?'ATMs':'banks';
   if(rule.id==='health'){if(/\b(?:pharmacy|pharmacies|chemist|medical store)\b/i.test(q))return 'pharmacies';if(/\bdentist/i.test(q))return 'dentists';if(/\b(?:gynecologist|gynaecologist)\b/i.test(q))return 'gynecologists';if(/\burologist/i.test(q))return 'urologists';if(/\bivf|fertility/i.test(q))return 'fertility clinics';if(/\bhospital/i.test(q))return 'hospitals';return 'health clinics'}
   if(rule.id==='transport'){if(/\bairport\b/i.test(q))return 'airports';if(/\b(?:railway|train|metro) station\b/i.test(q))return 'railway stations';if(/\b(?:bus station|bus stand|bus stop)\b/i.test(q))return 'bus stations';if(/\b(?:ev charging|charging station)\b/i.test(q))return 'EV charging stations';return 'petrol pumps'}
   if(rule.id==='shopping')return /\b(?:grocery|supermarket)\b/i.test(q)?'supermarkets and grocery stores':/\bmall\b/i.test(q)?'shopping malls':'shops and stores';
