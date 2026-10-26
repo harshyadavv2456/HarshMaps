@@ -217,6 +217,27 @@ async function search(query,options={}){
    status('Search provider unavailable',true);
  }
 }
+async function jumpToCity(query){
+ const q=String(query||'').trim();if(!q)return;
+ status('Finding '+q+'…');
+ try{
+   const center=map.getCenter();
+   const places=await HarshMaps.searchPlaces(q,{baseUrl:HarshMaps.providers.photon,limit:5,lat:center.lat,lon:center.lng,zoom:5,locationBiasScale:0.1,layers:['city','locality']});
+   if(!places.length)throw new Error('No city result returned.');
+   const wanted=q.split(',')[0].trim().toLowerCase();
+   const place=places.find(item=>String(item.name||'').toLowerCase()===wanted)||places[0];
+   setSearchArea(place);
+   map.flyTo({center:place.coordinates,zoom:11.5,speed:1.1,essential:true});
+   $('#place-query').value='';
+   setEmptySearch('Now type a bank, shop, landmark or address to search around '+(place.name||place.label)+'.','Ready to explore');
+   labelView(place.name||q,[place.state,place.country].filter(Boolean).join(' · ').toUpperCase()||'SELECTED CITY');
+   status('Showing '+(place.name||q));
+ }catch(error){
+   status('Could not jump to that city',true);
+   toast('City lookup failed. Search it by name and choose the right result.');
+   $('#place-query').value=q;search(q,{live:false});
+ }
+}
 $('#search-form').addEventListener('submit',event=>{event.preventDefault();clearTimeout(searchTimer);search($('#place-query').value,{live:false})});
 $('#place-query').addEventListener('input',()=>{
  const value=$('#place-query').value.trim();
@@ -240,7 +261,7 @@ document.addEventListener('click',event=>{
  if(!event.target.closest('.search-area-wrap'))$('#location-suggestions').hidden=true;
  if(!event.target.closest('#search-results')&&!event.target.closest('#search-form')&&$('#place-query').value.trim().length<3) return;
 });
-$$('[data-query]').forEach(b=>b.addEventListener('click',()=>search(b.dataset.query)));
+$('[data-query]').forEach(b=>b.addEventListener('click',()=>jumpToCity(b.dataset.query)));
 $$('.tab').forEach(tab=>tab.addEventListener('click',()=>{$$('.tab').forEach(t=>{const yes=t===tab;t.classList.toggle('active',yes);t.setAttribute('aria-selected',String(yes))});$$('.tool-panel').forEach(p=>{const yes=p.id===tab.dataset.panel;p.classList.toggle('active',yes);p.hidden=!yes})}));
 $$('[data-style]').forEach(b=>b.addEventListener('click',()=>{const name=b.dataset.style;if(!STYLES[name]||name===activeStyle)return;activeStyle=name;$$('.style-choice').forEach(t=>t.classList.toggle('active',t===b));setStatusLabel('Loading '+name+' style…');map.setStyle(STYLES[name]);map.once('style.load',()=>{status(name[0].toUpperCase()+name.slice(1)+' style active');if(latestRoute)HarshMaps.drawRoute(map,latestRoute.feature,latestRoute.options);if(is3D)HarshMaps.set3D(map,true);if(placesEnabled)refreshPlacesLayer()})}));
 function setStatusLabel(s){status(s)}
