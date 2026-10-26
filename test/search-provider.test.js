@@ -99,7 +99,7 @@ test('city resolution is not returned as a business and Nominatim is queried onc
   assert.equal(result.locationResolution?.name, 'Nagpur');
   assert.equal(result.places.length, 0);
 });
-test('autocomplete never falls through to public Nominatim', async () => {
+test('autocomplete never falls through to public Nominatim, even when misconfigured', async () => {
   let nominatimCalls = 0;
   const fetchImpl = async url => {
     const parsed = new URL(url);
@@ -107,8 +107,7 @@ test('autocomplete never falls through to public Nominatim', async () => {
     return response({ elements: [] }, 503);
   };
   const result = await searchPlacesResilient('SBI', {
-    center: [79.0882, 21.1458], live: true, allowNominatimFallback: false,
-    overpassEndpoints: ['https://overpass.test/api/interpreter'], overpassTimeoutMs: 100,
+    center: null, live: true, allowNominatimFallback: true, includeNearby: false,
     photonSearch: async () => { throw new Error('Photon blocked'); }, fetchImpl
   });
   assert.equal(nominatimCalls, 0);
