@@ -147,7 +147,7 @@ async function showNearbyCategoryResults(category,options={}){
    try{center=await requestDeviceCoordinates()}
    catch{locationMessage='Device location was unavailable; results use the current map view instead.'}
  }
- const targetZoom=Math.max(14.5,map.getZoom());
+ const targetZoom=Math.max(14.5,Math.min(16,map.getZoom()));
  placesEnabled=true;
  placesCategory=category.id;
  $('#toggle-places-layer').setAttribute('aria-pressed','true');
@@ -264,7 +264,6 @@ async function selectCategoryLocation(locationQuery){
    const places=await HarshMaps.searchPlaces(locationQuery,{
      baseUrl:HarshMaps.providers.photon,limit:8,
      lat:current.lat,lon:current.lng,zoom:5,locationBiasScale:0.1,
-     layers:['city','locality','district','county','state']
    });
    if(!places.length)return false;
    const wanted=String(locationQuery).split(',')[0].trim().toLowerCase();
