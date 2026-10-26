@@ -10,6 +10,7 @@ HarshMaps is an open mapping toolkit built on [MapLibre GL JS](https://maplibre.
 
 - Live site after Pages deployment: https://harshyadavv2456.github.io/HarshMaps/
 - Repository: https://github.com/harshyadavv2456/HarshMaps
+- [Free Integration Studio: iframe, website and mobile WebView](docs/FREE_INTEGRATION.md)
 - [Integration guide](docs/INTEGRATION.md)
 - [Provider and production guide](docs/PROVIDERS.md)
 
@@ -40,10 +41,12 @@ Provider endpoints can be replaced without rewriting the map UI.
 </script>
 ~~~
 
-For React/Next.js/Vite, install MapLibre with npm and copy the SDK source into your project so your bundler can resolve dependencies normally. See the integration guide.
+For the no-build route, use the Free Integration Studio on the homepage to generate an iframe that works on most websites and in mobile WebViews. For React/Next.js/Vite, install MapLibre with npm and copy the SDK source into your project so your bundler can resolve dependencies normally. See the integration guides.
 
 ## Included
 
+- Free Integration Studio that generates configurable iframe and browser SDK snippets
+- Standalone embed page for websites and mobile WebViews, with optional search, location and a marker
 - Responsive map explorer UI
 - Five switchable hosted vector-map styles
 - Manual place search (not a request per keystroke)
