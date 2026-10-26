@@ -568,6 +568,9 @@ async function search(query,options={}){
  searchController=new AbortController();
  const requestId=++searchRequestId;
  if(!options.live&&!selectedSearchArea&&!cachedSearchCoordinates){
+   hideSearchSuggestions();
+   showResults([],{busy:true,message:'Checking your location and preparing nearby search…'});
+   status('Finding a search area…');
    await requestSearchCoordinates();
    if(requestId!==searchRequestId)return;
  }
@@ -607,19 +610,24 @@ async function search(query,options={}){
    });
    if(category)showCategoryBrowseAction(category,q);
    if(!places.length){
-     status(result.errors?.length?'Search sources unavailable · retry or specify a city':'No matching places',true);
+     const details=(result.errors||[]).slice(0,2).join(' · ').slice(0,150);
+     status(result.errors?.length
+       ?'Search sources unavailable · '+details
+       :'No matching places',true);
      return;
    }
    status(places.length+' matches · ranked by relevance and distance'+(result.provider?' · '+result.provider:''));
  }catch(error){
    if(error&&error.name==='AbortError')return;
    if(requestId!==searchRequestId)return;
+   console.warn('[HarshMaps] Search pipeline failed',error);
    if(options.live)renderSearchSuggestions([],q,{failed:true});
    else{
      hideSearchSuggestions();
      showResults([],{message:'All available search sources failed this time. Check your connection and retry. Nearby search and geocoder fallbacks were attempted.'});
    }
-   status('Search sources unavailable · retry in a moment',true);
+   const detail=String(error&&error.message||'request failed').slice(0,120);
+   status('Search failed · '+detail,true);
  }
 }
 
