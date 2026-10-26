@@ -51,7 +51,9 @@ For the no-build route, use the Free Integration Studio on the homepage to gener
 - Standalone embed page for websites and mobile WebViews, with search, location, marker and global places overlay
 - Responsive map explorer UI
 - Five switchable hosted vector-map styles
-- Manual place search (not a request per keystroke)
+- Debounced search-as-you-type with explicit selection from geocoded results
+- Optional city/area scope, branch disambiguation and one-click directions from a selected place
+- Category browsing for banks/ATMs, food, shopping, healthcare, schools, hotels and landmarks
 - Browser geolocation
 - Driving route preview with distance and duration estimates
 - Route and marker helpers
