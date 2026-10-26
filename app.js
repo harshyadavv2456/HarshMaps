@@ -73,6 +73,7 @@ function showResults(places,options={}){
 function setSearchArea(place){
  selectedSearchArea=place;
  $('#search-location').value=place?place.label||place.name:'';
+ $('#clear-search-location').hidden=!place;
  const chip=$('#selected-search-area');chip.replaceChildren();
  if(place){
    const text=document.createElement('span');text.textContent='Searching near '+(place.name||place.label);
@@ -83,7 +84,7 @@ function setSearchArea(place){
  $('#location-suggestions').hidden=true;
 }
 function clearSearchArea(){
- selectedSearchArea=null;$('#search-location').value='';$('#selected-search-area').hidden=true;
+ selectedSearchArea=null;$('#search-location').value='';$('#selected-search-area').hidden=true;$('#clear-search-location').hidden=true;
  if($('#place-query').value.trim().length>=3){clearTimeout(searchTimer);searchTimer=setTimeout(()=>search($('#place-query').value,{live:true}),100)}
 }
 async function searchAreas(query){
@@ -123,14 +124,15 @@ async function searchAreas(query){
 async function search(query,options={}){
  const q=String(query||'').trim();
  if(q.length<2){if(!options.live)toast('Enter at least two characters to search.');return}
+ $('#place-query').value=q;
  if(searchController)searchController.abort();
  searchController=new AbortController();const requestId=++searchRequestId;
  const box=$('#search-results');
  const area=selectedSearchArea;
  const center=map.getCenter();
  const bias=area&&Array.isArray(area.coordinates)?area.coordinates:[center.lng,center.lat];
- const queryText=area?[q,area.name||area.label,area.state,area.country].filter(Boolean).join(', '):q;
- const useAreaExtent=area&&Array.isArray(area.extent)&&area.extent.length===4;
+ const useAreaExtent=Boolean(area&&Array.isArray(area.extent)&&area.extent.length===4);
+ const queryText=area&&!useAreaExtent?[q,area.name||area.label,area.state,area.country].filter(Boolean).join(', '):q;
  showResults([],{busy:true,message:area?'Searching around '+(area.name||area.label)+'…':'Searching across matching place names…'});
  status('Searching places…');
  try{
@@ -155,7 +157,7 @@ $('#place-query').addEventListener('input',()=>{
  searchTimer=setTimeout(()=>search(value,{live:true}),SEARCH_DEBOUNCE_MS);
 });
 $('#search-location').addEventListener('input',()=>{
- const q=$('#search-location').value.trim();selectedSearchArea=null;$('#selected-search-area').hidden=true;clearTimeout(areaTimer);
+ const q=$('#search-location').value.trim();selectedSearchArea=null;$('#selected-search-area').hidden=true;$('#clear-search-location').hidden=!q;clearTimeout(areaTimer);
  if(areaController)areaController.abort();
  if(q.length<2){$('#location-suggestions').hidden=true;return}
  areaTimer=setTimeout(()=>searchAreas(q),400);
