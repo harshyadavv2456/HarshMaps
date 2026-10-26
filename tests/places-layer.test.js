@@ -57,6 +57,9 @@ test('adds Overture vector layers and supports category and visibility controls'
   assert.equal(map.getLayer(OVERTURE_PLACES_DOTS_ID).beforeId, 'road-labels');
   assert.equal(map.getLayer(OVERTURE_PLACES_DOTS_ID).layout, undefined);
   assert.ok(map.filters.get(OVERTURE_PLACES_DOTS_ID));
+  assert.ok(JSON.stringify(map.filters.get(OVERTURE_PLACES_DOTS_ID)).includes('basic_category'), 'category filters must use current Overture basic_category fields');
+  setOverturePlaceCategory(map, 'banks');
+  assert.ok(JSON.stringify(map.filters.get(OVERTURE_PLACES_DOTS_ID)).includes('bank'));
   setOverturePlaceCategory(map, 'all');
   assert.equal(map.filters.get(OVERTURE_PLACES_DOTS_ID), null);
   setOverturePlacesVisible(map, false);
