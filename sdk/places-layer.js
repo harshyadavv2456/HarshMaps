@@ -21,7 +21,7 @@ export const PLACE_CATEGORY_GROUPS = Object.freeze({
 });
 
 export function validOvertureRelease(value) {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}\.\d+$/.test(value)) return false;
+  if (typeof value !== 'string' || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}[.][0-9]+$/.test(value)) return false;
   const date = value.slice(0, 10);
   const parsed = new Date(date + 'T00:00:00Z');
   return Number.isFinite(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === date;
