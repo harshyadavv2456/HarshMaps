@@ -1,0 +1,55 @@
+# Providers, costs, and production readiness
+
+HarshMaps separates the map renderer, map tiles/styles, search, and routing. They have different licenses, cost models, and failure modes. A no-key map does not make every mapping feature free or unlimited.
+
+## Default components
+
+### Map rendering — MapLibre GL JS
+
+Open-source WebGL vector-map renderer for camera movement, styling, controls, markers, and custom layers. It is not a map-data provider, geocoder, traffic service, or routing engine.
+
+### Map tiles and styles — OpenFreeMap
+
+The demo loads hosted OpenFreeMap style JSON and OpenStreetMap-derived vector tiles. OpenFreeMap advertises its public service as free, with no published map-view/request limits or API keys. The public instance does not provide a production uptime SLA. Retain attribution and follow current terms.
+
+Tile service availability, style coverage, label quality, POI density, and data freshness depend on OpenFreeMap and upstream data.
+
+### Place search — Photon demo endpoint
+
+Default: https://photon.komoot.io/api/. Photon is an open-source OSM-based geocoder. The public demo endpoint is for reasonable use; the operator may throttle or ban extensive use and gives no availability guarantee.
+
+For a public product, use a provider plan with clear production terms or operate your own geocoder. This demo searches only when a user submits a query.
+
+### Routing — OSRM demo endpoint
+
+Default: https://router.project-osrm.org/route/v1. The endpoint implements the OSRM route API, but a public demo server is not production infrastructure. This starter requests driving routes; other profiles are available only if a target server supports them.
+
+For production, evaluate a managed routing provider or host OSRM, Valhalla, or GraphHopper with current road data, monitoring, capacity planning, caching, and documented usage rules.
+
+## Can it match Mapbox or Google Maps?
+
+**The visual experience can be polished and comparable. The breadth of data and services will not automatically be identical.**
+
+- **Map appearance:** highly customizable with MapLibre style JSON and styles you control.
+- **Street and place data:** quality varies by market, source, and update cadence.
+- **Search:** ranking, POI coverage, autocomplete, place details, opening hours, and business data are separate capabilities.
+- **Directions:** quality depends on the routing graph, profiles, and provider.
+- **Traffic, live incidents, lane guidance, turn-by-turn navigation, route optimization, offline updates, and uptime guarantees:** not included in this starter stack.
+- **Service guarantees:** public demo endpoints can change or throttle at any time.
+
+## Production checklist
+
+1. Choose service owners for tiles, geocoding, routing, and (if required) traffic.
+2. Check commercial terms. Open source does not mean every hosted API is unlimited or backed by an SLA.
+3. Follow data and caching terms; add request deduplication and sensible limits.
+4. Add a backend proxy where needed to hide private keys, cache results, enforce quotas, observe latency, and switch providers.
+5. Monitor provider errors, add timeouts/retries with backoff, and show graceful fallbacks.
+6. Retain required attribution, including on mobile and embedded maps.
+7. Test local roads, addresses, rural coverage, boundaries, labels, language, and routes in target markets.
+8. Plan traffic load and service budget; public demo services make no production capacity commitment.
+9. Request location only with permission. Queries and coordinates may disclose sensitive user location to third parties.
+10. Pin versions and test upgrades before production releases.
+
+## Attribution and licenses
+
+MapLibre GL JS is open source. OpenStreetMap data is licensed under ODbL and requires attribution. OpenFreeMap, Photon, and OSRM have their own hosting and service policies; review live documentation before use. The repository's MIT license applies only to HarshMaps code.

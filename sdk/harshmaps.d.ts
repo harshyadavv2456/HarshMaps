@@ -1,0 +1,10 @@
+export type LngLat=[longitude:number,latitude:number];
+export interface HarshMapsPlace{id:string;name:string;label:string;coordinates:LngLat;city:string;state:string;country:string;extent:number[]|null;properties:Record<string,unknown>}
+export interface SearchPlacesOptions{baseUrl?:string;limit?:number;lat?:number;lon?:number;zoom?:number;fetchImpl?:typeof fetch}
+export interface RouteOptions{baseUrl?:string;profile?:string;alternatives?:boolean;fetchImpl?:typeof fetch}
+export interface HarshMapsRoute{distance:number;duration:number;geometry:GeoJSON.LineString;feature:GeoJSON.FeatureCollection<GeoJSON.LineString>;alternatives:Array<{distance:number;duration:number;geometry:GeoJSON.LineString}>;waypoints:unknown[]}
+export interface MapOptions{style?:string|Record<string,unknown>;center?:LngLat;zoom?:number;controls?:boolean;[key:string]:unknown}
+export declare const styles:Readonly<Record<'liberty'|'bright'|'positron'|'dark'|'fiord',string>>;
+export declare const providers:Readonly<{photon:string;osrm:string}>;
+export declare const version:string;
+export declare const HarshMaps:{readonly version:string;readonly styles:typeof styles;readonly providers:typeof providers;createMap(lib:Record<string,any>,container:string|HTMLElement,options?:MapOptions):any;searchPlaces(query:string,options?:SearchPlacesOptions):Promise<HarshMapsPlace[]>;getRoute(start:LngLat,end:LngLat,options?:RouteOptions):Promise<HarshMapsRoute>;drawRoute(map:any,data:GeoJSON.Feature|GeoJSON.FeatureCollection,options?:Record<string,any>):string;clearRoute(map:any,sourceId?:string):void;addMarker(lib:Record<string,any>,map:any,position:LngLat,options?:{color?:string;label?:string;element?:HTMLElement}):any;set3D(map:any,enabled:boolean,options?:{sourceId?:string;sourceLayer?:string;layerId?:string;color?:string}):boolean};
