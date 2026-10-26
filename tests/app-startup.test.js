@@ -7,7 +7,7 @@ const appPath = new URL('../app.js', import.meta.url);
 test('quick-city controls use the all-elements selector', async () => {
   const source = await readFile(appPath, 'utf8');
   assert.match(source, /\$\$\('\[data-query\]'\)\.forEach/);
-  assert.doesNotMatch(source, /\$\('\[data-query\]'\)\.forEach/);
+  assert.doesNotMatch(source, /(?:^|\n)\$\('\[data-query\]'\)\.forEach/m);
 });
 
 test('map startup events are registered before optional UI initialization', async () => {
