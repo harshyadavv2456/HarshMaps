@@ -32,7 +32,7 @@
 .builder-card-title strong{color:#303343;font-size:13px;letter-spacing:-.02em}
 .builder-card-title small{color:#9296a4;font-size:10px;line-height:1.5}
 .builder-options>label{display:flex;flex-direction:column;gap:7px;color:#515666;font-size:10px;font-weight:750}
-.builder-options select,.builder-options input[type=text]{width:100%;min-width:0;height:39px;padding:0 10px;border:1px solid #e4e6ed;border-radius:7px;outline:0;background:#fff;color:#333748;font:500 11px/1.4 inherit}
+.builder-options select,.builder-options input[type=text]{width:100%;min-width:0;height:39px;padding:0 10px;border:1px solid #e4e6ed;border-radius:7px;outline:0;background:#fff;color:#333748;font:inherit;font-size:11px;line-height:1.4}
 .builder-options select:focus,.builder-options input[type=text]:focus{border-color:#aaa1ff;box-shadow:0 0 0 3px #7666f014}
 .builder-two-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .builder-two-cols label{display:flex;flex-direction:column;gap:7px;color:#515666;font-size:10px;font-weight:750}
