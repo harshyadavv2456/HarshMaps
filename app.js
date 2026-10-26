@@ -247,7 +247,70 @@ $('#toggle-3d').addEventListener('click',()=>{is3D=!is3D;$('#toggle-3d').setAttr
 function distance(m){return m>=1000?(m/1000).toFixed(m>=10000?0:1)+' km':Math.round(m)+' m'}
 function duration(s){const min=Math.max(1,Math.round(s/60));if(min<60)return min+' min';const h=Math.floor(min/60),r=min%60;return h+' hr'+(r?' '+r+' min':'')}
 function instructionText(step){const m=step.maneuver||{},type=String(m.type||'continue').replace(/_/g,' '),modifier=String(m.modifier||'').replace(/_/g,' ');const phrases={depart:'Start driving',arrive:'Arrive at destination',turn:'Turn',merge:'Merge',fork:'At the fork',continue:'Continue','new name':'Continue','on ramp':'Take the ramp','off ramp':'Exit the ramp','end of road':'At the end of the road',roundabout:'Enter the roundabout',rotary:'Enter the rotary','roundabout turn':'Take the roundabout exit',notification:'Continue'};let phrase=phrases[type]||type.charAt(0).toUpperCase()+type.slice(1);if(modifier&&type!=='depart'&&type!=='arrive'&&type!=='notification')phrase+=' '+modifier;if(step.name)phrase+=' onto '+step.name;return phrase}
-function routeSummary(route){const box=$('#route-result');box.replaceChildren();const w=document.createElement('div');w.className='route-summary';const h=document.createElement('div');h.className='route-summary-head';const d=document.createElement('strong');d.textContent=duration(route.duration);const sub=document.createElement('span');sub.textContent='Estimated driving time · demo router';h.append(d,sub);const meta=document.createElement('div');meta.className='route-summary-meta';[['Route distance',distance(route.distance)],['Travel mode','Driving']].forEach(([t,v])=>{const stat=document.createElement('div');stat.className='route-stat';const small=document.createElement('small');small.textContent=t;const strong=document.createElement('strong');strong.textContent=v;stat.append(small,strong);meta.append(stat)});w.append(h,meta);box.append(w);const steps=Array.isArray(route.steps)?route.steps:[];if(steps.length){const heading=document.createElement('div');heading.className='steps-heading';heading.textContent='ROUTE STEPS';box.append(heading);const list=document.createElement('ol');list.className='directions-steps';steps.slice(0,40).forEach((step,index)=>{const row=document.createElement('li');const number=document.createElement('span');number.className='step-number';number.textContent=String(index+1);const body=document.createElement('span');body.className='step-copy';const title=document.createElement('strong');title.textContent=instructionText(step);const detail=document.createElement('small');detail.textContent=distance(step.distance||0)+(step.duration?' · '+duration(step.duration):'');body.append(title,detail);row.append(number,body);list.append(row)});box.append(list)}}
+function routeSummary(route,modeLabel='Driving'){
+ const box=$('#route-result');box.replaceChildren();
+ const summary=document.createElement('div');summary.className='route-summary';
+ const heading=document.createElement('div');heading.className='route-summary-head';
+ const time=document.createElement('strong');time.textContent=duration(route.duration);
+ const subtitle=document.createElement('span');subtitle.textContent='Estimated '+modeLabel.toLowerCase()+' time · public demo router';
+ heading.append(time,subtitle);
+ const meta=document.createElement('div');meta.className='route-summary-meta';
+ [['Route distance',distance(route.distance)],['Travel mode',modeLabel]].forEach(([label,value])=>{
+   const stat=document.createElement('div');stat.className='route-stat';
+   const small=document.createElement('small');small.textContent=label;
+   const strong=document.createElement('strong');strong.textContent=value;
+   stat.append(small,strong);meta.append(stat);
+ });
+ summary.append(heading,meta);box.append(summary);
+ const alternatives=Array.isArray(route.alternatives)?route.alternatives:[];
+ if(alternatives.length){
+   const altHead=document.createElement('div');altHead.className='steps-heading';altHead.textContent='ALTERNATIVE ROUTES';box.append(altHead);
+   const list=document.createElement('div');list.className='route-alternatives';
+   [route,...alternatives].forEach((candidate,index)=>{
+     const option=document.createElement('button');option.type='button';option.className='route-alternative';
+     if(index===0)option.classList.add('active');
+     const title=document.createElement('strong');title.textContent=index===0?'Recommended route':('Alternative '+index);
+     const details=document.createElement('small');details.textContent=distance(candidate.distance)+' · '+duration(candidate.duration);
+     option.append(title,details);
+     option.addEventListener('click',()=>{
+       $$('.route-alternative').forEach(item=>item.classList.toggle('active',item===option));
+       const feature=candidate.feature||{type:'FeatureCollection',features:[{type:'Feature',properties:{distance:candidate.distance,duration:candidate.duration},geometry:candidate.geometry}]};
+       HarshMaps.drawRoute(map,feature,{color:'#675bf4',casingColor:'#ffffff'});
+       const selectedRoute={...route,distance:candidate.distance,duration:candidate.duration,geometry:candidate.geometry,feature,steps:candidate.steps||route.steps};
+       latestRoute={feature,options:{color:'#675bf4',casingColor:'#ffffff'}};
+       // Update summary metrics and itinerary to match the chosen path.
+       $('#route-result').querySelector('.route-summary-head strong').textContent=duration(selectedRoute.duration);
+       const routeStats=$('#route-result').querySelectorAll('.route-stat strong');
+       if(routeStats[0])routeStats[0].textContent=distance(selectedRoute.distance);
+       const existing=$('#route-result').querySelector('.directions-steps');
+       if(existing)existing.remove();
+       const existingHeading=Array.from($('#route-result').querySelectorAll('.steps-heading')).find(el=>el.textContent==='ROUTE STEPS');
+       if(existingHeading)existingHeading.remove();
+       renderRouteSteps(selectedRoute,box);
+       const bounds=new maplibregl.LngLatBounds();candidate.geometry.coordinates.forEach(point=>bounds.extend(point));
+       map.fitBounds(bounds,{padding:{top:100,right:90,bottom:90,left:90},maxZoom:15,duration:700});
+     });
+     list.append(option);
+   });
+   box.append(list);
+ }
+ renderRouteSteps(route,box);
+}
+function renderRouteSteps(route,box){
+ const steps=Array.isArray(route.steps)?route.steps:[];
+ if(!steps.length)return;
+ const heading=document.createElement('div');heading.className='steps-heading';heading.textContent='ROUTE STEPS';box.append(heading);
+ const list=document.createElement('ol');list.className='directions-steps';
+ steps.slice(0,40).forEach((step,index)=>{
+   const row=document.createElement('li');const number=document.createElement('span');number.className='step-number';number.textContent=String(index+1);
+   const body=document.createElement('span');body.className='step-copy';
+   const title=document.createElement('strong');title.textContent=instructionText(step);
+   const detail=document.createElement('small');detail.textContent=distance(step.distance||0)+(step.duration?' · '+duration(step.duration):'');
+   body.append(title,detail);row.append(number,body);list.append(row);
+ });
+ box.append(list);
+}
+
 function parsePinnedLocation(input){const m=String(input||'').trim().match(/^@\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);if(!m)return null;const lat=Number(m[1]),lon=Number(m[2]);if(!Number.isFinite(lat)||!Number.isFinite(lon)||lat < -90||lat > 90||lon < -180||lon > 180)throw Error('Coordinates must use @latitude, longitude with latitude in ±90 and longitude in ±180.');return{id:'coordinate:'+lat+','+lon,name:'Pinned coordinates',label:lat.toFixed(5)+', '+lon.toFixed(5),coordinates:[lon,lat],city:'',country:''}}
 const routeSelections={from:null,to:null};
 const routeSearchState={
