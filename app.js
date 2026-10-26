@@ -722,7 +722,7 @@ document.addEventListener('click',event=>{
  if(!event.target.closest('.search-area-wrap'))$('#location-suggestions').hidden=true;
  if(!event.target.closest('.search-autocomplete-wrap'))hideSearchSuggestions();
 });
-$('[data-query]').forEach(b=>b.addEventListener('click',()=>jumpToCity(b.dataset.query)));
+$$('[data-query]').forEach(b=>b.addEventListener('click',()=>jumpToCity(b.dataset.query)));
 $('[data-map-query]').forEach(b=>b.addEventListener('click',()=>{const q=b.dataset.mapQuery;$('#place-query').value=q;hideSearchSuggestions();void search(q,{live:false})}));
 const localAIButton=$('#enable-local-ai');
 function renderLocalAIButton(){
