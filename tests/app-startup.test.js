@@ -14,7 +14,7 @@ test('map startup events are registered before optional UI initialization', asyn
   const source = await readFile(appPath, 'utf8');
   const loadListener = source.indexOf("map.on('load'");
   const quickCityHandler = source.indexOf("\$\$('[data-query]').forEach");
-  const tabHandler = source.indexOf("$( '.tab' ).forEach(tab=>tab.addEventListener");
+  const tabHandler = source.indexOf("$$('.tab').forEach(tab=>tab.addEventListener");
   assert.notEqual(loadListener, -1, 'Map load listener should exist');
   assert.notEqual(quickCityHandler, -1, 'Quick-city handler should exist');
   assert.ok(loadListener < quickCityHandler, 'Map startup listener must register before UI handlers');
