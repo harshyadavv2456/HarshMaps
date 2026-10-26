@@ -151,3 +151,11 @@ test('submitted search uses Nominatim only as a fallback for place lookup', asyn
   assert.equal(result.places[0].name, 'Nagpur');
   assert.equal(result.provider, 'Nominatim fallback');
 });
+
+
+test('broader nearby categories build real OSM selectors', () => {
+  assert.equal(inferPlaceCategory('gyms and fitness centres near me')?.id, 'fitness');
+  assert.equal(inferPlaceCategory('parks and gardens near me')?.id, 'outdoors');
+  assert.match(buildOverpassQuery('gyms and fitness centres', [79.0882, 21.1458]), /\["leisure"="fitness_centre"\]/);
+  assert.match(buildOverpassQuery('parks and gardens', [79.0882, 21.1458]), /\["leisure"="playground"\]/);
+});
