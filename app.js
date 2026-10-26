@@ -45,3 +45,103 @@ $('#mobile-menu').addEventListener('click',()=>{const open=$('#control-panel').c
 $('#copy-snippet').addEventListener('click',async()=>{const snippet='<div id="map" style="height:420px"></div>\n<script type="module">\n  import * as ml from "https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.mjs";\n  import { HarshMaps } from "https://cdn.jsdelivr.net/gh/harshyadavv2456/HarshMaps@main/sdk/harshmaps.js";\n  HarshMaps.createMap(ml, "map", { style: HarshMaps.styles.liberty });\n</script>';try{await navigator.clipboard.writeText(snippet);$('#copy-snippet').textContent='Copied ✓';setTimeout(()=>$('#copy-snippet').textContent='Copy snippet ⧉',1800)}catch{toast('Clipboard blocked. Copy the snippet from the code panel.')}});
 map.on('load',()=>{$('#map-loader').classList.add('hidden');status('Connected · OpenFreeMap vector tiles');updateZoom();map.addControl(new maplibregl.GeolocateControl({positionOptions:{enableHighAccuracy:true},trackUserLocation:false,showUserHeading:true}),'top-right')});
 map.on('zoom',updateZoom);map.on('error',e=>{if(e&&e.error&&!map.loaded())status('Waiting for map service…',true)});
+
+// Universal integration builder: generate copy/paste iframe or a direct browser SDK example.
+const embedOptionsForm = $('#embed-options');
+if (embedOptionsForm) {
+  let embedMode = 'iframe';
+  let lastPreviewUrl = '';
+  function buildEmbedConfig() {
+    const coords = $('#embed-center').value.split(',').map(Number);
+    return {
+      lat: coords[0], lng: coords[1],
+      style: $('#embed-style').value,
+      zoom: Number($('#embed-zoom').value),
+      height: Number($('#embed-height').value),
+      search: $('#embed-search-enabled').checked,
+      locate: $('#embed-locate-enabled').checked,
+      marker: $('#embed-marker-enabled').checked,
+      label: $('#embed-label').value.trim().slice(0, 120)
+    };
+  }
+  function makeEmbedUrl(c) {
+    const url = new URL('./embed.html', window.location.href);
+    const p = new URLSearchParams();
+    p.set('lat', String(c.lat));
+    p.set('lng', String(c.lng));
+    p.set('zoom', String(c.zoom));
+    p.set('style', c.style);
+    p.set('search', String(c.search));
+    p.set('locate', String(c.locate));
+    p.set('marker', String(c.marker));
+    p.set('controls', 'true');
+    if (c.marker && c.label) p.set('label', c.label);
+    url.search = p.toString();
+    return url.href;
+  }
+  function iframeExample(c, url) {
+    const safeUrl = url.replace(/&/g, '&amp;');
+    return '<iframe title="HarshMaps interactive map" src="' + safeUrl +
+      '" width="100%" height="' + c.height +
+      '" style="border:0;border-radius:12px;overflow:hidden" loading="lazy" allow="geolocation" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+  }
+  function sdkExample(c) {
+    const label = JSON.stringify(c.label || 'Pinned location');
+    const searchMarkup = c.search
+      ? '<form id="harshmaps-search" style="display:flex;gap:8px;margin-bottom:8px"><input id="harshmaps-query" placeholder="Search a place" style="flex:1;min-width:0;padding:9px;border:1px solid #d7dbe4;border-radius:6px"><button style="padding:9px 12px">Search</button></form>\\n'
+      : '';
+    const markerCode = c.marker
+      ? "map.once('load', () => HarshMaps.addMarker(maplibregl, map, [" + c.lng + ', ' + c.lat + "], { label: " + label + " }));\\n"
+      : '';
+    const locateCode = c.locate
+      ? "map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: false }), 'top-right');\\n"
+      : '';
+    const searchCode = c.search
+      ? "document.getElementById('harshmaps-search').addEventListener('submit', async (event) => {\\n  event.preventDefault();\\n  try {\\n    const places = await HarshMaps.searchPlaces(document.getElementById('harshmaps-query').value);\\n    if (places[0]) { map.flyTo({ center: places[0].coordinates, zoom: 14 }); HarshMaps.addMarker(maplibregl, map, places[0].coordinates, { label: places[0].name }); }\\n  } catch (error) { console.error('HarshMaps search failed', error); }\\n});\\n"
+      : '';
+    return '<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.css">\\n' +
+      searchMarkup + '<div id="harshmaps-map" style="width:100%;height:' + c.height + 'px"></div>\\n' +
+      '<script type="module">\\n' +
+      "import * as maplibregl from 'https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.mjs';\\n" +
+      "import { HarshMaps } from 'https://cdn.jsdelivr.net/gh/harshyadavv2456/HarshMaps@main/sdk/harshmaps.js';\\n" +
+      "const map = HarshMaps.createMap(maplibregl, 'harshmaps-map', { style: HarshMaps.styles." + c.style +
+      ', center: [' + c.lng + ', ' + c.lat + '], zoom: ' + c.zoom + ' });\\n' +
+      markerCode + locateCode + searchCode + '</script>';
+  }
+  function updateEmbedBuilder() {
+    const c = buildEmbedConfig();
+    const url = makeEmbedUrl(c);
+    if (url !== lastPreviewUrl) {
+      $('#embed-preview').src = url;
+      lastPreviewUrl = url;
+    }
+    $('#embed-preview').style.height = c.height + 'px';
+    $('#embed-preview-title').textContent = $('#embed-center').selectedOptions[0].textContent.split(',')[0] + ' · ' + c.style[0].toUpperCase() + c.style.slice(1);
+    $('#integration-code').textContent = embedMode === 'iframe' ? iframeExample(c, url) : sdkExample(c);
+    $('#integration-code-language').textContent = embedMode === 'iframe' ? 'HTML · iframe' : 'JavaScript · ESM';
+    $('#integration-code-note').textContent = embedMode === 'iframe'
+      ? 'Best for WordPress, static pages, landing pages, and any platform that accepts an iframe. In mobile apps, load this same HTTPS URL in a WebView.'
+      : 'For a custom web app using ES modules. For Next.js/Vite/React, install MapLibre through npm and copy the SDK into your source for a production build.';
+  }
+  embedOptionsForm.addEventListener('change', updateEmbedBuilder);
+  $$('[data-builder-mode]').forEach((button) => button.addEventListener('click', () => {
+    embedMode = button.dataset.builderMode;
+    $$('[data-builder-mode]').forEach((item) => {
+      const active = item === button;
+      item.classList.toggle('active', active);
+      item.setAttribute('aria-pressed', String(active));
+    });
+    updateEmbedBuilder();
+  }));
+  $('#copy-integration').addEventListener('click', async () => {
+    const code = $('#integration-code').textContent;
+    try {
+      await navigator.clipboard.writeText(code);
+      $('#copy-integration').textContent = 'Copied ✓';
+      setTimeout(() => { $('#copy-integration').textContent = 'Copy code ⧉'; }, 1800);
+    } catch (error) {
+      toast('Clipboard access was blocked. Select the code above and copy it manually.');
+    }
+  });
+  updateEmbedBuilder();
+}
