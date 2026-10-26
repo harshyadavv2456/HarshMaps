@@ -147,6 +147,25 @@ export function brandExpression(query) {
   return '';
 }
 
+function isKnownBrandQuery(query) {
+  const q = normalizeSearchQuery(query);
+  return KNOWN_BRANDS.some(item => item.pattern.test(q)) || /^[A-Z0-9]{2,8}$/.test(q);
+}
+
+const SEARCH_RESULT_CACHE = new Map();
+function searchCacheKey(query, center, options) {
+  const point = validCenter(center) ? [Number(center[0]).toFixed(4), Number(center[1]).toFixed(4)] : [];
+  return JSON.stringify([normalizeSearchQuery(query).toLowerCase(), point, Boolean(options.live), Boolean(options.allowNominatimFallback), Boolean(options.areaCoordinates)]);
+}
+function cacheSearchResult(key, result, ttlMs) {
+  if (!result.places.length || result.provider === 'none') return;
+  SEARCH_RESULT_CACHE.set(key, { expiresAt: Date.now() + ttlMs, result });
+  if (SEARCH_RESULT_CACHE.size > 150) {
+    const first = SEARCH_RESULT_CACHE.keys().next().value;
+    if (first !== undefined) SEARCH_RESULT_CACHE.delete(first);
+  }
+}
+
 function categorySelectors(categoryId, lat, lon, radius) {
   const tags = CATEGORY_TAGS[categoryId] || [];
   return tags.map(([key, value]) =>
@@ -391,6 +410,14 @@ export async function searchPlacesResilient(query, options = {}) {
   let locationResolution = null;
   const errors = [];
   let photonPlaces = [];
+  const cacheKey = searchCacheKey(q, center, options);
+  const cached = SEARCH_RESULT_CACHE.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    const ranked = rankSearchRecommendations(cached.result.places, q, center, {
+      category: inferPlaceCategory(q), limit: options.limit || (live ? 8 : 20)
+    });
+    return { ...cached.result, places: ranked, provider: cached.result.provider + ' · cache' };
+  }
 
   if (locationQuery && options.allowNominatimFallback && !options.areaCoordinates) {
     try {
@@ -419,7 +446,7 @@ export async function searchPlacesResilient(query, options = {}) {
   const hasExplicitLocation = Boolean(locationQuery);
   const shouldSearchOpenStreetMap = validCenter(center) &&
     (!hasExplicitLocation || Boolean(locationResolution) || Boolean(options.areaCoordinates)) &&
-    (Boolean(category) || Boolean(brandQuery) && (live ? (effectiveQuery.length >= 3 && !/[,\\d]/.test(effectiveQuery)) : true)) &&
+    (Boolean(category) || Boolean(brandQuery) && (live ? (effectiveQuery.length >= 3 && isKnownBrandQuery(effectiveQuery) && !/[,\\d]/.test(effectiveQuery)) : true)) &&
     (!live || !hasExplicitLocation || Boolean(options.areaCoordinates));
 
   const photonTask = async () => {
@@ -473,7 +500,7 @@ export async function searchPlacesResilient(query, options = {}) {
     [...combined, ...nominatimPlaces], q, center,
     { category: inferPlaceCategory(q), limit: options.limit || (live ? 8 : 20) }
   );
-  return {
+  const finalResult = {
     places: results,
     provider: osmPlaces.length && photonPlaces.length ? 'Photon + OpenStreetMap' :
       osmPlaces.length ? 'OpenStreetMap nearby search' :
@@ -483,4 +510,6 @@ export async function searchPlacesResilient(query, options = {}) {
     locationResolution,
     errors
   };
+  cacheSearchResult(cacheKey, finalResult, live ? 120_000 : 300_000);
+  return finalResult;
 }
