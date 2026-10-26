@@ -88,6 +88,18 @@ test('autocomplete never falls through to public Nominatim', async () => {
   assert.equal(result.errors.length > 0, true);
 });
 
+test('autocomplete does not search the previous map area for an incomplete location suffix', async () => {
+  let overpassCalls = 0;
+  const result = await searchPlacesResilient('SBI in', {
+    center: [79.0882, 21.1458], live: true, allowNominatimFallback: false,
+    overpassEndpoints: ['https://overpass.test/api/interpreter'],
+    photonSearch: async () => [],
+    fetchImpl: async () => { overpassCalls++; return response({ elements: [] }); }
+  });
+  assert.equal(overpassCalls, 0);
+  assert.equal(result.places.length, 0);
+});
+
 test('submitted search uses Nominatim only as a fallback for place lookup', async () => {
   let nominatimCalls = 0;
   const fetchImpl = async url => {
