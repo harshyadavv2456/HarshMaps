@@ -1,7 +1,7 @@
 import { HarshMaps } from './sdk/harshmaps.js';
 import { formatDistance, rankNearbyPlaces } from './sdk/nearby.js';
 import { detectPlaceCategory, extractCategoryLocation } from './sdk/search-intent.js';
-import { inferPlaceCategory, searchPlacesResilient } from './sdk/search-provider.js?v=20261026-4';
+import { inferPlaceCategory, searchPlacesResilient } from './sdk/search-provider.js?v=20261026-5';
 import { addOverturePlaces, bindOverturePlacePopups, validOvertureRelease, setOverturePlaceCategory, setOverturePlacesVisible } from './sdk/places-layer.js';
 
 function withImportTimeout(promise, milliseconds, label) {
