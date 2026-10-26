@@ -77,6 +77,26 @@ function showCategoryBrowseAction(category){
  });
  card.append(icon,text,action);box.prepend(card);
 }
+function offerDirectionsTo(place){
+ const box=$('#search-results');
+ box.querySelector('.selected-place-action')?.remove();
+ const action=document.createElement('div');action.className='selected-place-action';
+ const copy=document.createElement('div');copy.className='selected-place-copy';
+ const title=document.createElement('strong');title.textContent='Going here?';
+ const details=document.createElement('small');details.textContent=(place.name||place.label)+' · '+(placeContext(place)||place.label);
+ copy.append(title,details);
+ const button=document.createElement('button');button.type='button';button.className='selected-place-route';button.textContent='Plan route →';
+ button.addEventListener('click',()=>{
+   const tab=$('.tab').find(item=>item.dataset.panel==='directions-panel');
+   if(tab)tab.click();
+   routeSelections.to=place;
+   $('#route-to').value=place.label||place.name;
+   hideRouteSuggestions('to');
+   $('#route-from').focus();
+   toast('Destination added. Choose a start point to get directions.');
+ });
+ action.append(copy,button);box.append(action);
+}
 function showResults(places,options={}){
  const box=$('#search-results');box.replaceChildren();
  $('#result-count').textContent=options.busy?'…':String(places.length).padStart(2,'0');
@@ -104,7 +124,7 @@ function showResults(places,options={}){
      clearMarkers(searchMarkers);marker(place);
      map.flyTo({center:place.coordinates,zoom:15,speed:1.15,essential:true});
      labelView(place.name||'Selected place',[place.city,place.state,place.country].filter(Boolean).join(' · ').toUpperCase()||'SELECTED RESULT');
-     status('Showing '+(place.name||place.label));
+     status('Showing '+(place.name||place.label));offerDirectionsTo(place);
      $$('.result-card').forEach(item=>item.removeAttribute('aria-current'));btn.setAttribute('aria-current','true');
      if(innerWidth<=760){$('#control-panel').classList.remove('open');$('#mobile-menu').setAttribute('aria-expanded','false')}
    });
