@@ -1,9 +1,65 @@
-import * as maplibregl from 'https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.mjs';
 import { HarshMaps } from './sdk/harshmaps.js';
-import { Protocol } from 'https://cdn.jsdelivr.net/npm/pmtiles@4.5.0/+esm';
 import { addOverturePlaces, bindOverturePlacePopups, validOvertureRelease, setOverturePlaceCategory, setOverturePlacesVisible } from './sdk/places-layer.js';
-const pmtilesProtocol = new Protocol();
-maplibregl.addProtocol('pmtiles', pmtilesProtocol.tile);
+
+function withImportTimeout(promise, milliseconds, label) {
+ let timer;
+ return Promise.race([
+  promise,
+  new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(label + ' timed out.')), milliseconds); })
+ ]).finally(() => clearTimeout(timer));
+}
+async function loadMapLibre() {
+ const sources = [
+  'https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.mjs',
+  'https://cdn.jsdelivr.net/npm/maplibre-gl@6.16.0/dist/maplibre-gl.mjs',
+  'https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.mjs'
+ ];
+ let lastError = null;
+ for (const source of sources) {
+  try { return await withImportTimeout(import(source), 6000, 'Map engine CDN'); }
+  catch (error) { lastError = error; }
+ }
+ const loader = document.querySelector('#map-loader');
+ if (loader) { loader.classList.remove('hidden'); loader.classList.add('failed'); loader.textContent = 'Map engine unavailable. Check your connection and reload this page.'; }
+ const mapStatus = document.querySelector('#map-status');
+ if (mapStatus) mapStatus.textContent = 'Map engine unavailable · CDN requests failed';
+ document.querySelector('#map-health-dot')?.classList.add('warning');
+ throw lastError || new Error('Could not load the MapLibre map engine.');
+}
+const maplibregl = await loadMapLibre();
+
+let pmtilesProtocolPromise = null;
+function ensurePmtilesProtocol() {
+ if (pmtilesProtocolPromise) return pmtilesProtocolPromise;
+ const setup = (async () => {
+  let lastError = null;
+  for (const source of ['https://cdn.jsdelivr.net/npm/pmtiles@4.5.0/+esm', 'https://esm.sh/pmtiles@4.5.0']) {
+   try {
+    const pmtiles = await withImportTimeout(import(source), 6000, 'Places library CDN');
+    if (typeof pmtiles.Protocol !== 'function') throw new Error('PMTiles did not expose its MapLibre protocol.');
+    maplibregl.addProtocol('pmtiles', new pmtiles.Protocol().tile);
+    return true;
+   } catch (error) { lastError = error; }
+  }
+  throw lastError || new Error('PMTiles could not be loaded.');
+ })();
+ pmtilesProtocolPromise = setup.catch(error => { pmtilesProtocolPromise = null; throw error; });
+ return pmtilesProtocolPromise;
+}
+const RASTER_FALLBACK_STYLE = {
+ version: 8,
+ sources: {
+  'osm-raster': {
+   type: 'raster',
+   tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+   tileSize: 256,
+   minzoom: 0,
+   maxzoom: 19,
+   attribution: '© OpenStreetMap contributors'
+  }
+ },
+ layers: [{ id: 'osm-raster-layer', type: 'raster', source: 'osm-raster', minzoom: 0, maxzoom: 19 }]
+};
 const STYLES=HarshMaps.styles, START={center:[72.8777,19.076],zoom:10.2};
 const ROUTING_MODES=Object.freeze({driving:{label:'Driving',baseUrl:'https://routing.openstreetmap.de/routed-car/route/v1',profile:'driving'},walking:{label:'Walking',baseUrl:'https://routing.openstreetmap.de/routed-foot/route/v1',profile:'driving'},cycling:{label:'Cycling',baseUrl:'https://routing.openstreetmap.de/routed-bike/route/v1',profile:'driving'}});
 const map=HarshMaps.createMap(maplibregl,'map',{style:STYLES.liberty,center:START.center,zoom:START.zoom,maxZoom:20,minZoom:2,attributionControl:{compact:true}});
@@ -467,8 +523,28 @@ $('#use-current-location').addEventListener('click',()=>locate(true));$('#locate
 $('#reset-view').addEventListener('click',()=>{map.flyTo({center:START.center,zoom:START.zoom,bearing:0,pitch:0,speed:1.15});clearMarkers(searchMarkers);clearMarkers(routeMarkers);latestRoute=null;HarshMaps.clearRoute(map);labelView('Mumbai, India');status('Map view reset')});
 $('#mobile-menu').addEventListener('click',()=>{const open=$('#control-panel').classList.toggle('open');$('#mobile-menu').setAttribute('aria-expanded',String(open))});
 $('#copy-snippet').addEventListener('click',async()=>{const snippet='<div id="map" style="height:420px"></div>\n<script type="module">\n  import * as ml from "https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.mjs";\n  import { HarshMaps } from "https://cdn.jsdelivr.net/gh/harshyadavv2456/HarshMaps@main/sdk/harshmaps.js";\n  HarshMaps.createMap(ml, "map", { style: HarshMaps.styles.liberty });\n</script>';try{await navigator.clipboard.writeText(snippet);$('#copy-snippet').textContent='Copied ✓';setTimeout(()=>$('#copy-snippet').textContent='Copy snippet ⧉',1800)}catch{toast('Clipboard blocked. Copy the snippet from the code panel.')}});
-map.on('load',()=>{$('#map-loader').classList.add('hidden');status('Connected · OpenFreeMap vector tiles');updateZoom();map.addControl(new maplibregl.GeolocateControl({positionOptions:{enableHighAccuracy:true},trackUserLocation:false,showUserHeading:true}),'top-right');refreshPlacesLayer()});
-map.on('zoom',updateZoom);map.on('error',e=>{if(e&&e.error&&!map.loaded())status('Waiting for map service…',true)});
+let mapStartupReady=false,rasterFallbackActive=false,mapControlsAdded=false,mapStartupTimer=null,mapFallbackTimer=null;
+function finishMapStartup(useFallback=false){
+ if(mapStartupReady)return;
+ mapStartupReady=true;clearTimeout(mapStartupTimer);clearTimeout(mapFallbackTimer);
+ $('#map-loader').classList.add('hidden');status(useFallback?'Backup raster map active · OpenStreetMap tiles':'Connected · OpenFreeMap vector tiles',useFallback);updateZoom();
+ if(!mapControlsAdded){map.addControl(new maplibregl.GeolocateControl({positionOptions:{enableHighAccuracy:true},trackUserLocation:false,showUserHeading:true}),'top-right');mapControlsAdded=true}
+ refreshPlacesLayer();
+}
+function failMapStartup(message){
+ const loader=$('#map-loader');loader.classList.remove('hidden');loader.classList.add('failed');loader.textContent=message;status('Map services unavailable',true);
+}
+map.on('load',()=>{if(!rasterFallbackActive)finishMapStartup(false);else if(map.getStyle()?.sources?.['osm-raster'])finishMapStartup(true)});
+map.on('style.load',()=>{if(rasterFallbackActive&&!mapStartupReady&&map.getStyle()?.sources?.['osm-raster'])finishMapStartup(true)});
+map.on('zoom',updateZoom);
+map.on('error',e=>{if(!mapStartupReady&&e&&e.error)status('Map service is slow or unavailable · trying recovery…',true)});
+mapStartupTimer=setTimeout(()=>{
+ if(mapStartupReady||rasterFallbackActive)return;
+ rasterFallbackActive=true;status('Vector map is not responding · trying a backup basemap',true);
+ const loader=$('#map-loader');loader.classList.remove('hidden');loader.classList.remove('failed');loader.textContent='Vector tiles unavailable · switching to backup map…';
+ mapFallbackTimer=setTimeout(()=>{if(!mapStartupReady)failMapStartup('Map services did not respond. Check your internet connection and reload this page.')},12000);
+ try{map.setStyle(RASTER_FALLBACK_STYLE)}catch(error){failMapStartup('Could not start the backup map. Check your connection and reload this page.')}
+},14000);
 
 // Universal integration builder: generate copy/paste iframe or a direct browser SDK example.
 const embedOptionsForm = $('#embed-options');
@@ -607,6 +683,7 @@ async function refreshPlacesLayer() {
       placesStatus('Global places layer active · Overture ' + metadata.release);
       return;
     }
+    await ensurePmtilesProtocol();
     addOverturePlaces(map, metadata.release, { category: placesCategory, visible: true });
     if (!placesLayerBound) {
       bindOverturePlacePopups(map, maplibregl);
