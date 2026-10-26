@@ -1,4 +1,4 @@
-import { detectPlaceCategory, extractCategoryLocation } from './search-intent.js';
+import { detectPlaceCategory, extractCategoryLocation } from './search-intent.js?v=20261026-2';
 
 export const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search';
 export const OVERPASS_ENDPOINTS = Object.freeze([
