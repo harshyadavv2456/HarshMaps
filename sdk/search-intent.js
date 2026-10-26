@@ -15,7 +15,7 @@ function normalizeQuery(query) {
     .trim()
     .replace(/[.,!?]/g, ' ')
     .replace(/\s+/g, ' ')
-    .replace(/^(?:please\s+)?(?:find|show|search(?:\s+for)?|look\s+for|give\s+me)\s+/, '')
+    .replace(/^(?:please\s+)?(?:where\s+can\s+i\s+find|can\s+you\s+find|find\s+me|find|show\s+me|show|search(?:\s+for)?|look\s+for|give\s+me|i\s+need|i\s+want)\s+/, '')
     .replace(/^(?:the\s+)?(?:best|top|good|closest|nearest)\s+/, '')
     .replace(/\s+(?:in|near|around|within)\s+.+$/, '')
     .replace(/^(?:near\s+me|around\s+me|nearby)\s+/, '')
