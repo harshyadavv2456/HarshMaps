@@ -294,7 +294,10 @@ export async function searchOverpassPlaces(query, options = {}) {
   const q = normalizeSearchQuery(query);
   const category = options.category || inferPlaceCategory(q);
   const statement = buildOverpassQuery(q, options.center, { ...options, category });
-  const endpoints = Array.isArray(options.endpoints) && options.endpoints.length ? options.endpoints : OVERPASS_ENDPOINTS;
+  const configuredEndpoints = Array.isArray(options.endpoints) && options.endpoints.length ? options.endpoints : OVERPASS_ENDPOINTS;
+  // Autocomplete must remain responsive. One or two quick endpoints are enough for a live prefix;
+  // submitted searches can afford the full fallback pool.
+  const endpoints = options.live ? configuredEndpoints.slice(0, 2) : configuredEndpoints;
   let lastError = null;
   for (const endpoint of endpoints) {
     if (options.signal?.aborted) throw options.signal.reason || new DOMException('Search cancelled.', 'AbortError');
@@ -413,10 +416,11 @@ export async function searchPlacesResilient(query, options = {}) {
   const cacheKey = searchCacheKey(q, center, options);
   const cached = SEARCH_RESULT_CACHE.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) {
-    const ranked = rankSearchRecommendations(cached.result.places, q, center, {
+    const cacheCenter = cached.result.locationResolution?.coordinates || cached.result.center || center;
+    const ranked = rankSearchRecommendations(cached.result.places, q, cacheCenter, {
       category: inferPlaceCategory(q), limit: options.limit || (live ? 8 : 20)
     });
-    return { ...cached.result, places: ranked, provider: cached.result.provider + ' · cache' };
+    return { ...cached.result, center: cacheCenter, places: ranked, provider: cached.result.provider + ' · cache' };
   }
 
   if (locationQuery && options.allowNominatimFallback && !options.areaCoordinates) {
@@ -467,7 +471,7 @@ export async function searchPlacesResilient(query, options = {}) {
     return searchOverpassPlaces(effectiveQuery, {
       center, category, signal: options.signal, fetchImpl: options.fetchImpl,
       endpoints: options.overpassEndpoints, radiusMeters: options.radiusMeters,
-      timeoutMs: options.overpassTimeoutMs || 5_000
+      live, timeoutMs: options.overpassTimeoutMs || (live ? 1_800 : 5_000)
     });
   };
   const [photonOutcome, osmOutcome] = await Promise.allSettled([photonTask(), openStreetMapTask()]);
