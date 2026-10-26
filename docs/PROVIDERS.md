@@ -22,11 +22,17 @@ The explorer and embed can add the Overture Places vector tile set from the curr
 
 The repository's GitHub Actions workflow polls the Overture STAC release pointer every 15 minutes and updates the static release metadata only when the release ID changes. Overture releases data monthly; this polling interval is not the listing-refresh cadence. The overlay is a separate open-data source, not a scrape or redistribution of Google Maps listings.
 
-### Place search — Photon demo endpoint
+### Place search and recommendations
 
-Default: https://photon.komoot.io/api/. Photon is an open-source OSM-based geocoder. The public demo endpoint is for reasonable use; the operator may throttle or ban extensive use and gives no availability guarantee.
+HarshMaps uses a layered search path instead of assuming a single public geocoder is always available:
 
-For a public product, use a provider plan with clear production terms or operate your own geocoder. This demo searches only when a user submits a query.
+1. **Photon** (`https://photon.komoot.io/api/`) for address/place-name matching and autocomplete. Photon supports search-as-you-type and location bias, but its public demo is for reasonable use only; extensive usage may be throttled or blocked and no availability guarantee is provided.
+2. **OpenStreetMap Overpass** for nearby business/category and known-brand discovery (for example, ATMs/banks near the map/device location or SBI names/operators). Requests have timeouts, try a small set of public instances, and successful queries are cached to reduce repeated load. Public Overpass instances can be overloaded; this is best-effort fallback, not a guaranteed SLA.
+3. **Nominatim** only for explicit submitted lookups and city resolution when the primary results do not suffice. It is deliberately not used as an autocomplete provider because the public Nominatim usage policy prohibits client-side autocomplete. Respect its rate limits and requirements.
+
+Results are ranked using text/category relevance, straight-line proximity, and available OSM notability signals (such as Wikipedia/Wikidata/population fields). These signals are not review counts or a verified measure of popularity. If an open dataset has no popularity signal, HarshMaps should not invent one. Distances shown in search results are straight-line estimates rather than road distances.
+
+For a public production product, use a managed search provider or host a controlled search backend with explicit usage rights, caching, per-user limits, monitoring, and a fallback policy. The open public endpoints can fail or throttle, so the app displays recoverable states rather than guaranteeing that public demos will always respond.
 
 ### Routing — OSRM public demo profiles
 
