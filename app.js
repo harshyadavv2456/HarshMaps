@@ -247,7 +247,16 @@ function setStatusLabel(s){status(s)}
 $('#toggle-3d').addEventListener('click',()=>{is3D=!is3D;$('#toggle-3d').setAttribute('aria-pressed',String(is3D));const supported=HarshMaps.set3D(map,is3D);status(is3D?'3D perspective enabled':'Flat map view');if(is3D&&!supported)toast('Perspective enabled; this style may not include 3D building geometry.')});
 function distance(m){return m>=1000?(m/1000).toFixed(m>=10000?0:1)+' km':Math.round(m)+' m'}
 function duration(s){const min=Math.max(1,Math.round(s/60));if(min<60)return min+' min';const h=Math.floor(min/60),r=min%60;return h+' hr'+(r?' '+r+' min':'')}
-function instructionText(step){const m=step.maneuver||{},type=String(m.type||'continue').replace(/_/g,' '),modifier=String(m.modifier||'').replace(/_/g,' ');const phrases={depart:'Start driving',arrive:'Arrive at destination',turn:'Turn',merge:'Merge',fork:'At the fork',continue:'Continue','new name':'Continue','on ramp':'Take the ramp','off ramp':'Exit the ramp','end of road':'At the end of the road',roundabout:'Enter the roundabout',rotary:'Enter the rotary','roundabout turn':'Take the roundabout exit',notification:'Continue'};let phrase=phrases[type]||type.charAt(0).toUpperCase()+type.slice(1);if(modifier&&type!=='depart'&&type!=='arrive'&&type!=='notification')phrase+=' '+modifier;if(step.name)phrase+=' onto '+step.name;return phrase}
+function instructionText(step,modeLabel='Driving'){
+ const maneuver=step.maneuver||{};
+ const type=String(maneuver.type||'continue').replace(/_/g,' ');
+ const modifier=String(maneuver.modifier||'').replace(/_/g,' ');
+ const phrases={depart:'Start '+modeLabel.toLowerCase(),arrive:'Arrive at destination',turn:'Turn',merge:'Merge',fork:'At the fork',continue:'Continue','new name':'Continue','on ramp':'Take the ramp','off ramp':'Exit the ramp','end of road':'At the end of the road',roundabout:'Enter the roundabout',rotary:'Enter the rotary','roundabout turn':'Take the roundabout exit',notification:'Continue'};
+ let phrase=phrases[type]||type.charAt(0).toUpperCase()+type.slice(1);
+ if(modifier&&type!=='depart'&&type!=='arrive'&&type!=='notification')phrase+=' '+modifier;
+ if(step.name)phrase+=' onto '+step.name;
+ return phrase;
+}
 function routeSummary(route,modeLabel='Driving'){
  const box=$('#route-result');box.replaceChildren();
  const summary=document.createElement('div');summary.className='route-summary';
@@ -287,7 +296,7 @@ function routeSummary(route,modeLabel='Driving'){
        if(existing)existing.remove();
        const existingHeading=Array.from($('#route-result').querySelectorAll('.steps-heading')).find(el=>el.textContent==='ROUTE STEPS');
        if(existingHeading)existingHeading.remove();
-       renderRouteSteps(selectedRoute,box);
+       renderRouteSteps(selectedRoute,box,modeLabel);
        const bounds=new maplibregl.LngLatBounds();candidate.geometry.coordinates.forEach(point=>bounds.extend(point));
        map.fitBounds(bounds,{padding:{top:100,right:90,bottom:90,left:90},maxZoom:15,duration:700});
      });
@@ -295,9 +304,9 @@ function routeSummary(route,modeLabel='Driving'){
    });
    box.append(list);
  }
- renderRouteSteps(route,box);
+ renderRouteSteps(route,box,modeLabel);
 }
-function renderRouteSteps(route,box){
+function renderRouteSteps(route,box,modeLabel='Driving'){
  const steps=Array.isArray(route.steps)?route.steps:[];
  if(!steps.length)return;
  const heading=document.createElement('div');heading.className='steps-heading';heading.textContent='ROUTE STEPS';box.append(heading);
@@ -305,7 +314,7 @@ function renderRouteSteps(route,box){
  steps.slice(0,40).forEach((step,index)=>{
    const row=document.createElement('li');const number=document.createElement('span');number.className='step-number';number.textContent=String(index+1);
    const body=document.createElement('span');body.className='step-copy';
-   const title=document.createElement('strong');title.textContent=instructionText(step);
+   const title=document.createElement('strong');title.textContent=instructionText(step,modeLabel);
    const detail=document.createElement('small');detail.textContent=distance(step.distance||0)+(step.duration?' · '+duration(step.duration):'');
    body.append(title,detail);row.append(number,body);list.append(row);
  });
