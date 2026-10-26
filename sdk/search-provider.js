@@ -80,7 +80,7 @@ const CATEGORY_WORDS = Object.freeze({
   health: /\b(?:hospital|hospitals|clinic|clinics|pharmacy|pharmacies|doctor|doctors|dentist|dentists|gynecologist|gynecologists|gynaecologist|gynaecologists|urologist|urologists)\b/i,
   education: /\b(?:school|schools|college|colleges|university|universities)\b/i,
   lodging: /\b(?:hotel|hotels|hostel|hostels|motel|motels)\b/i,
-  landmarks: /\b(?:monument|monuments|museum|museums|landmark|landmarks|attraction|attractions|temple|temples|church|churches|mosque|mosques|park|parks)\b/i,
+  landmarks: /\b(?:monument|monuments|museum|museums|landmark|landmarks|attraction|attractions|temple|temples|church|churches|mosque|mosques)\b/i,
   services: /\b(?:gas station|petrol pump|post office|government office|police station|fire station|public toilet|restroom)\b/i,
   transport: /\b(?:airport|railway station|train station|metro station|bus station|bus stand|bus stop|ev charging|charging station)\b/i,
   fitness: /\b(?:gym|fitness centre|fitness center|yoga studio|swimming pool|sports complex|stadium)\b/i,
@@ -140,7 +140,8 @@ export function inferPlaceCategory(query) {
         title: ({
           banks: 'Banks & ATMs', food: 'Food & drink', shopping: 'Shops & retail',
           health: 'Healthcare', education: 'Schools & universities', lodging: 'Hotels & accommodation',
-          landmarks: 'Landmarks & attractions', services: 'Public services & fuel'
+          landmarks: 'Landmarks & attractions', services: 'Public services & fuel',
+          transport: 'Transport & charging', fitness: 'Fitness & recreation', outdoors: 'Parks & outdoors', personal: 'Personal services'
         })[id],
         terms: []
       };
@@ -449,6 +450,8 @@ export async function searchPlacesResilient(query, options = {}) {
   const q = normalizeSearchQuery(query);
   if (q.length < 2) return { places: [], provider: 'none', errors: [] };
   const live = Boolean(options.live);
+  // Never call Nominatim from autocomplete, even if a caller misconfigures the option.
+  const allowNominatimFallback = Boolean(options.allowNominatimFallback) && !live;
   const locationQuery = extractCategoryLocation(q);
   let center = validCenter(options.center) ? options.center : null;
   let effectiveQuery = q;
@@ -466,7 +469,7 @@ export async function searchPlacesResilient(query, options = {}) {
     return { ...cached.result, center: cacheCenter, places: ranked, provider: cached.result.provider + ' · cache' };
   }
 
-  if (locationQuery && options.allowNominatimFallback && !options.areaCoordinates) {
+  if (locationQuery && allowNominatimFallback && !options.areaCoordinates) {
     nominatimAttemptedForLocation = true;
     try {
       const locations = await searchNominatimThrottled(locationQuery, {
@@ -484,7 +487,7 @@ export async function searchPlacesResilient(query, options = {}) {
       errors.push('Location fallback: ' + (error.message || 'unavailable'));
     }
   }
-  if (locationQuery && options.allowNominatimFallback) {
+  if (locationQuery && allowNominatimFallback) {
     const idx = q.toLowerCase().lastIndexOf(locationQuery.toLowerCase());
     if (idx > 0) effectiveQuery = q.slice(0, Math.max(0, idx)).replace(/\b(?:in|near|around|within)\s*$/i, '').trim() || q;
   }
@@ -532,7 +535,7 @@ export async function searchPlacesResilient(query, options = {}) {
 
   const combined = [...photonPlaces, ...osmPlaces];
   let nominatimPlaces = [];
-  if (!combined.length && options.allowNominatimFallback && !nominatimAttemptedForLocation) {
+  if (!combined.length && allowNominatimFallback && !nominatimAttemptedForLocation) {
     try {
       nominatimPlaces = await searchNominatimThrottled(effectiveQuery, {
         limit: options.limit || 10, signal: options.signal,
