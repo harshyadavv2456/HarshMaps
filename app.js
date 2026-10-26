@@ -322,20 +322,17 @@ function selectedAreaMatchesLocation(locationQuery){
 }
 async function selectCategoryLocation(locationQuery){
  try{
-   const current=map.getCenter();
-   const places=await HarshMaps.searchPlaces(locationQuery,{
-     baseUrl:HarshMaps.providers.photon,limit:8,
-     lat:current.lat,lon:current.lng,zoom:5,locationBiasScale:0.1,
-   });
+   const result=await resilientSearchPlaces(locationQuery,{live:false,allowNominatimFallback:true,includeNearby:false,limit:8,layers:['city','locality','district','county','state']});
+   const places=result.places||[];
    if(!places.length)return false;
    const wanted=String(locationQuery).split(',')[0].trim().toLowerCase();
    const place=places.find(item=>String(item.name||'').toLowerCase()===wanted)
      ||places.find(item=>String(item.label||'').toLowerCase().includes(wanted))
-     ||places[0];
+     ||result.locationResolution||places[0];
    setSearchArea(place);
    map.flyTo({center:place.coordinates,zoom:11.5,speed:1.1,essential:true});
    labelView(place.name||place.label,[place.state,place.country].filter(Boolean).join(' · ').toUpperCase()||'SELECTED CITY');
-   status('Searching '+(place.name||place.label));
+   status('Searching '+(place.name||place.label)+(result.provider?' · '+result.provider:''));
    return true;
  }catch(error){return false}
 }
@@ -460,11 +457,15 @@ async function searchAreas(query){
  const box=$('#location-suggestions');box.replaceChildren();
  const msg=document.createElement('div');msg.className='suggestions-message';msg.textContent='Finding cities and areas…';box.append(msg);box.hidden=false;
  try{
-   const center=map.getCenter();
-   const places=await HarshMaps.searchPlaces(q,{baseUrl:HarshMaps.providers.photon,limit:6,lat:center.lat,lon:center.lng,zoom:5,locationBiasScale:0.1,layers:['city','locality','district','county','state'],signal:areaController.signal});
+   const result=await resilientSearchPlaces(q,{live:true,allowNominatimFallback:false,includeNearby:false,limit:6,layers:['city','locality','district','county','state'],signal:areaController.signal});
    if(requestId!==areaRequestId)return;
+   const places=(result.places||[]).slice(0,6);
    box.replaceChildren();
-   if(!places.length){const empty=document.createElement('div');empty.className='suggestions-message';empty.textContent='No city or area found. Try including the state or country.';box.append(empty);return}
+   if(!places.length){
+     const empty=document.createElement('div');empty.className='suggestions-message';
+     empty.textContent=result.errors?.length?'City suggestions are unavailable. Press Enter to retry this city with the fallback geocoder.':'No city or area found. Try including the state or country.';
+     box.append(empty);return;
+   }
    places.forEach(place=>{
      const btn=document.createElement('button');btn.type='button';btn.className='location-suggestion';
      const icon=document.createElement('span');icon.className='location-suggestion-icon';icon.textContent='⌖';
@@ -483,156 +484,31 @@ async function searchAreas(query){
  }catch(error){
    if(error&&error.name==='AbortError')return;
    if(requestId!==areaRequestId)return;
-   box.replaceChildren();const msg2=document.createElement('div');msg2.className='suggestions-message';msg2.textContent='City suggestions are temporarily unavailable.';box.append(msg2);
- }
-}
-function hideSearchSuggestions(){
- const box=$('#search-suggestions');
- if(box)box.hidden=true;
- $('#place-query')?.setAttribute('aria-expanded','false');
-}
-function renderSearchSuggestions(places,query,options={}){
- const box=$('#search-suggestions');
- if(!box)return;
- box.replaceChildren();
- box.hidden=false;
- $('#place-query').setAttribute('aria-expanded','true');
- const head=document.createElement('div');
- head.className='search-suggestions-head';
- const title=document.createElement('span');
- title.textContent=options.busy?'SEARCHING NEARBY':places.length?'RECOMMENDED MATCHES':'SEARCH HELP';
- const count=document.createElement('small');
- count.textContent=options.busy?'Finding places…':places.length?String(places.length)+' matches':'Live suggestions';
- head.append(title,count);box.append(head);
- if(options.busy){
-   const message=document.createElement('div');message.className='search-suggestions-message';
-   message.textContent=options.message||'Checking the geocoder and nearby map data…';
-   box.append(message);return;
- }
- if(!places.length){
-   const message=document.createElement('div');message.className='search-suggestions-message';
-   const bold=document.createElement('strong');
-   bold.textContent=options.failed?'Live provider did not respond':'No quick matches yet';
-   const copy=document.createElement('span');
-   copy.textContent=options.failed
-     ?'Press Enter to retry with the submit-only fallback and nearby OpenStreetMap search.'
-     :'Keep typing or press Enter to run a full search.';
-   message.append(bold,copy);box.append(message);
-   const footer=document.createElement('div');footer.className='search-suggestions-footer';
-   footer.textContent='HarshMaps tries nearby business data when the geocoder is unavailable.';
-   box.append(footer);return;
- }
- places.slice(0,8).forEach((place,index)=>{
-   const btn=document.createElement('button');btn.type='button';btn.className='search-suggestion';
-   btn.setAttribute('role','option');btn.setAttribute('aria-selected','false');
-   const icon=document.createElement('span');icon.className='search-suggestion-icon';icon.textContent='⌖';
-   const copy=document.createElement('span');copy.className='search-suggestion-copy';
-   const name=document.createElement('strong');name.textContent=place.name||place.label||'Unnamed place';
-   const detail=document.createElement('small');
-   const context=placeContext(place)||place.label||place.category||'Place result';
-   detail.textContent=context;
-   copy.append(name,detail);
-   const badgeText=place.recommendationBadge||(index===0?'Recommended':'');
-   if(badgeText){const badge=document.createElement('span');badge.className='search-suggestion-badge';badge.textContent=badgeText;copy.append(badge)}
-   const distance=document.createElement('span');distance.className='search-suggestion-distance';
-   distance.textContent=Number.isFinite(place.distanceMeters)?formatDistance(place.distanceMeters):'';
-   btn.append(icon,copy,distance);
-   btn.addEventListener('mouseenter',()=>{box.querySelectorAll('.search-suggestion').forEach(item=>item.setAttribute('aria-selected',String(item===btn)))});
-   btn.addEventListener('click',()=>{
-     hideSearchSuggestions();
-     showResults(places,{message:'Ranked by relevance, proximity and the notability signals present in open map data.'});
-     clearMarkers(searchMarkers);
-     marker(place);
-     map.flyTo({center:place.coordinates,zoom:15,speed:1.1,essential:true});
-     labelView(place.name||'Selected place',[place.city,place.state,place.country].filter(Boolean).join(' · ').toUpperCase()||'SELECTED RESULT');
-     status('Showing '+(place.name||place.label));
-     offerDirectionsTo(place);
-     const cards=$$('#search-results .result-card');
-     if(cards[index])cards[index].setAttribute('aria-current','true');
-   });
-   box.append(btn);
- });
- const footer=document.createElement('div');footer.className='search-suggestions-footer';
- footer.textContent='Recommendations use name/category relevance, distance and available Wikipedia/Wikidata/population signals. Live ratings and traffic popularity are not supplied by these open datasets.';
- box.append(footer);
-}
-
-async function search(query,options={}){
- const q=String(query||'').trim();
- if(q.length<2){if(!options.live)toast('Enter at least two characters to search.');hideSearchSuggestions();return}
- $('#place-query').value=q;
- if(searchController)searchController.abort();
- searchController=new AbortController();
- const requestId=++searchRequestId;
- if(options.live)renderSearchSuggestions([] ,q,{busy:true,message:'Checking place names and nearby business data…'});
- else{
-   hideSearchSuggestions();
-   showResults([],{busy:true,message:'Searching place names and nearby businesses…'});
- }
- status(options.live?'Finding relevant suggestions…':'Searching places…');
- try{
-   const result=await resilientSearchPlaces(q,{
-     live:Boolean(options.live),
-     allowNominatimFallback:!options.live,
-     signal:searchController.signal,
-     limit:options.live?8:20
-   });
-   if(requestId!==searchRequestId)return;
-   const places=result.places||[];
-   if(!options.live&&result.locationResolution&&extractCategoryLocation(q)){
-     setSearchArea(result.locationResolution);
-     map.flyTo({center:result.locationResolution.coordinates,zoom:12,speed:1.0,essential:true});
-   }
-   const category=inferPlaceCategory(q)||detectPlaceCategory(q);
-   if(options.live){
-     renderSearchSuggestions(places,q,{failed:!places.length&&Boolean(result.errors?.length)});
-     status(places.length
-       ?places.length+' relevant suggestion'+(places.length===1?'':'s')+' · ranked for your search'
-       :result.errors?.length?'Live providers failed · press Enter for fallback search':'Keep typing or press Enter to search');
-     return;
-   }
-   showResults(places,{
-     message:places.length?'':result.errors?.length
-       ?'The geocoder and nearby-data fallback did not return results. Try again, add a city, or use a more specific business name.'
-       :selectedSearchArea?'No matches around '+(selectedSearchArea.name||selectedSearchArea.label)+'. Try a different spelling or clear Search In.'
-       :'No matching places found. Try a brand plus a city, such as “SBI in Nagpur”.'
-   });
-   if(category)showCategoryBrowseAction(category,q);
-   if(!places.length){
-     status(result.errors?.length?'Search sources unavailable · retry or specify a city':'No matching places',true);
-     return;
-   }
-   status(places.length+' matches · ranked by relevance and distance'+(result.provider?' · '+result.provider:''));
- }catch(error){
-   if(error&&error.name==='AbortError')return;
-   if(requestId!==searchRequestId)return;
-   if(options.live){
-     renderSearchSuggestions([],q,{failed:true});
-   }else{
-     showResults([],{message:'All available search sources failed this time. Check your connection and retry. Nearby search and geocoder fallbacks were attempted.'});
-   }
-   status('Search sources unavailable · retry in a moment',true);
+   box.replaceChildren();const msg2=document.createElement('div');msg2.className='suggestions-message';
+   msg2.textContent='City suggestions are unavailable. Press Enter to try the fallback city lookup.';
+   box.append(msg2);
  }
 }
 async function jumpToCity(query){
  const q=String(query||'').trim();if(!q)return;
  status('Finding '+q+'…');
  try{
-   const center=map.getCenter();
-   const places=await HarshMaps.searchPlaces(q,{baseUrl:HarshMaps.providers.photon,limit:5,lat:center.lat,lon:center.lng,zoom:5,locationBiasScale:0.1,layers:['city','locality']});
+   const result=await resilientSearchPlaces(q,{live:false,allowNominatimFallback:true,includeNearby:false,limit:8,layers:['city','locality','district','county','state']});
+   const places=result.places||[];
    if(!places.length)throw new Error('No city result returned.');
    const wanted=q.split(',')[0].trim().toLowerCase();
-   const place=places.find(item=>String(item.name||'').toLowerCase()===wanted)||places[0];
+   const place=places.find(item=>String(item.name||'').toLowerCase()===wanted)||result.locationResolution||places[0];
    setSearchArea(place);
    map.flyTo({center:place.coordinates,zoom:11.5,speed:1.1,essential:true});
-   $('#place-query').value='';
+   $('#place-query').value='';hideSearchSuggestions();
    setEmptySearch('Now type a bank, shop, landmark or address to search around '+(place.name||place.label)+'.','Ready to explore');
    labelView(place.name||q,[place.state,place.country].filter(Boolean).join(' · ').toUpperCase()||'SELECTED CITY');
-   status('Showing '+(place.name||q));
+   status('Showing '+(place.name||q)+(result.provider?' · '+result.provider:''));
  }catch(error){
    status('Could not jump to that city',true);
-   toast('City lookup failed. Search it by name and choose the right result.');
-   $('#place-query').value=q;search(q,{live:false});
+   toast('City lookup failed. Type the city in Search In and press Enter to use the fallback lookup.');
+   $('#search-location').value=q;
+   void selectCategoryLocation(q);
  }
 }
 $('#search-form').addEventListener('submit',event=>{event.preventDefault();clearTimeout(searchTimer);search($('#place-query').value,{live:false})});
@@ -664,7 +540,7 @@ $('#search-location').addEventListener('input',()=>{
 });
 $('#search-location').addEventListener('keydown',event=>{
  if(event.key==='Escape'){$('#location-suggestions').hidden=true;$('#search-location').blur()}
- if(event.key==='Enter'&&!selectedSearchArea){event.preventDefault();searchAreas($('#search-location').value)}
+ if(event.key==='Enter'&&!selectedSearchArea){event.preventDefault();void selectCategoryLocation($('#search-location').value).then(found=>{if(!found){const box=$('#location-suggestions');box.replaceChildren();const msg=document.createElement('div');msg.className='suggestions-message';msg.textContent='Could not resolve that city from the available providers. Include state/country and try again.';box.append(msg);box.hidden=false}})}
 });
 $('#clear-search-location').addEventListener('click',clearSearchArea);
 document.addEventListener('click',event=>{
@@ -797,9 +673,10 @@ async function searchRouteSuggestions(field,query){
  const bias=selectedOrigin||[current.lng,current.lat];
  box.replaceChildren();const wait=document.createElement('div');wait.className='suggestions-message';wait.textContent='Finding matching places…';box.append(wait);box.hidden=false;
  try{
-   const places=await HarshMaps.searchPlaces(query,{baseUrl:HarshMaps.providers.photon,limit:6,lat:bias[1],lon:bias[0],zoom:11,locationBiasScale:0.35,signal:state.controller.signal});
+   const result=await resilientSearchPlaces(query,{live:true,allowNominatimFallback:false,includeNearby:false,limit:6,signal:state.controller.signal});
+   const places=result.places||[];
    if(requestId!==state.requestId||input.value.trim()!==query)return;
-   showRouteSuggestions(field,places,places.length?'':'No matches. Try adding a city, state or street.');
+   showRouteSuggestions(field,places,places.length?'':result.errors?.length?'Live suggestions unavailable. Submit a full address to try the fallback geocoder.':'No matches. Try adding a city, state or street.');
  }catch(error){
    if(error&&error.name==='AbortError')return;
    if(requestId!==state.requestId)return;
@@ -831,9 +708,9 @@ async function resolveRouteEndpoint(field,text){
  if(pinned)return pinned;
  const selected=routeSelections[field];
  if(selected&&(text===selected.label||text===selected.name))return selected;
- const c=map.getCenter();
- const places=await HarshMaps.searchPlaces(text,{baseUrl:HarshMaps.providers.photon,limit:6,lat:c.lat,lon:c.lng,zoom:11,locationBiasScale:0.35});
- if(!places.length)throw Error('Could not find '+(field==='from'?'the starting point':'the destination')+'. Try a full address or add a city.');
+ const result=await resilientSearchPlaces(text,{live:false,allowNominatimFallback:true,includeNearby:false,limit:6});
+ const places=result.places||[];
+ if(!places.length)throw Error('Could not find '+(field==='from'?'the starting point':'the destination')+'. Both the primary and fallback geocoders failed; try a fuller address.');
  if(places.length===1)return places[0];
  showRouteSuggestions(field,places);
  throw Error('Choose the exact '+(field==='from'?'starting point':'destination')+' from the suggestions. This prevents routing to the wrong city.');
