@@ -29,6 +29,14 @@ HarshMaps is an open mapping toolkit built on [MapLibre GL JS](https://maplibre.
 
 Provider endpoints can be replaced without rewriting the map UI.
 
+## Natural-language search and local AI
+
+HarshMaps always runs a small local intent interpreter that turns everyday phrases into map-searchable categories and keeps explicit brand and location names. It recognizes common requests such as “the nearest SBI branch around me”, “vegetarian dinner in Nagpur”, cash withdrawal, parks and playgrounds, pharmacies, gyms, stations and other categories, then searches live open map data and ranks available results by relevance and distance.
+
+The optional **Enable on-device AI** control loads a quantized 135M-parameter SmolLM2 instruction model through Transformers.js. The model is downloaded to the browser on first use (roughly 180 MB, depending on the selected quantized files and runtime), then inference runs on the device. There is no hosted LLM inference endpoint, AI API key or per-query AI bill. It is opt-in because downloading model weights can be slow and device performance varies; the rule-based local interpreter works without it.
+
+**Important distinction:** local AI interprets the query; it does not contain a live global directory. HarshMaps still requests map tiles, geocoding and nearby-place data from public open-data services, and directions from public routing demos. Real-time opening hours, reviews, traffic, and nuanced preferences such as “best” or “cheap” are only available when the data source exposes reliable fields; they are not invented by the model.
+
 ## Quick start: browser ESM
 
 ~~~html
