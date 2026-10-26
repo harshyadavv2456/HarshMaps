@@ -41,5 +41,16 @@ test('the served homepage contains the autocomplete dropdown and correct cache v
   const html = await readFile(indexPath, 'utf8');
   assert.match(html, /id="search-suggestions"/);
   assert.match(html, /aria-controls="search-suggestions"/);
-  assert.ok(html.includes('app.js?v=20261026-10'));
+  assert.ok(html.includes('app.js?v=20261026-11'));
+});
+
+
+test('homepage exposes local AI, natural language feedback, and category shortcuts', async () => {
+  const html = await readFile(indexPath, 'utf8');
+  const app = await readFile(appPath, 'utf8');
+  assert.match(html, /id="enable-local-ai"/);
+  assert.match(html, /id="query-understanding"/);
+  assert.match(html, /data-map-query="ATMs near me"/);
+  assert.match(app, /understandMapQuery\(q\)/);
+  assert.match(app, /interpretWithLocalModel\(q\)/);
 });
