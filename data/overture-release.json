@@ -1,0 +1,7 @@
+{
+  "provider": "Overture Maps Foundation",
+  "release": "2026-10-21.0",
+  "source_url": "https://overturemaps-extras-us-west-2.s3.us-west-2.amazonaws.com/tiles/2026-10-21.0/places.pmtiles",
+  "release_cadence": "monthly",
+  "purpose": "experimental global places layer; public inspection tiles"
+}
