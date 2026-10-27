@@ -90,3 +90,7 @@ The workflow at .github/workflows/pages.yml publishes the site whenever the main
 The demo uses OpenFreeMap styles, OpenStreetMap-derived map data, and an experimental Overture global places overlay. The 15-minute workflow checks only for a newly published Overture release; Overture's source dataset is updated on a monthly cadence, not every 15 minutes. Keep attribution visible. OpenStreetMap data is available under the ODbL; read the [OpenStreetMap copyright page](https://www.openstreetmap.org/copyright) and provider terms before production use.
 
 The MIT license in this repository applies to HarshMaps source code only. Map data, tiles, and third-party services remain under their own licenses and terms. See [LICENSE](LICENSE).
+
+## Pins and clusters
+
+`addPinClusters(map, { pins, onSelect })` from `harshmaps/pins` draws thousands of points as clusters that open up as you zoom, on a plain MapLibre map with no key. Intima's Care tab uses it for 1000+ clinics. See `sdk/pins.d.ts`.

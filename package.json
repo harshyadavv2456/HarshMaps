@@ -1,6 +1,6 @@
 {
   "name": "harshmaps",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Configurable mapping SDK and experimental worldwide places layer built on open map infrastructure",
   "type": "module",
   "license": "MIT",
@@ -18,6 +18,10 @@
     "./places-layer": {
       "types": "./sdk/places-layer.d.ts",
       "import": "./sdk/places-layer.js"
+    },
+    "./pins": {
+      "types": "./sdk/pins.d.ts",
+      "import": "./sdk/pins.js"
     }
   },
   "files": [
