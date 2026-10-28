@@ -1,7 +1,7 @@
 /** HarshMaps browser SDK. Pass MapLibre's module namespace to createMap(). */
 export const styles=Object.freeze({liberty:'https://tiles.openfreemap.org/styles/liberty',bright:'https://tiles.openfreemap.org/styles/bright',positron:'https://tiles.openfreemap.org/styles/positron',dark:'https://tiles.openfreemap.org/styles/dark',fiord:'https://tiles.openfreemap.org/styles/fiord'});
 export const providers=Object.freeze({photon:'https://photon.komoot.io/api/',osrm:'https://router.project-osrm.org/route/v1'});
-export const version='0.2.0';
+export const version='0.2.1';
 function mapClass(lib){const C=lib&&(lib.Map||(lib.default&&lib.default.Map));if(typeof C!=='function')throw TypeError('Pass the MapLibre module namespace to createMap().');return C}
 function coordinates(value,label){if(!Array.isArray(value)||value.length<2)throw TypeError(label+' must be [longitude, latitude].');const p=[Number(value[0]),Number(value[1])];if(!Number.isFinite(p[0])||!Number.isFinite(p[1])||p[0]<-180||p[0]>180||p[1]<-90||p[1]>90)throw RangeError(label+' has invalid longitude/latitude.');return p}
 function validUrl(value,label){let url;try{url=new URL(value)}catch{throw TypeError(label+' must be a valid URL.')}if(!['https:','http:'].includes(url.protocol))throw TypeError(label+' must use HTTP or HTTPS.');return url}

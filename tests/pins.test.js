@@ -36,7 +36,7 @@ test('addPinClusters builds a clustered source and cleans up fully', () => {
   const picked = [];
   const pins = addPinClusters(m, { id: 't', pins: [{ id: 'a', lng: 1, lat: 1 }], onSelect: p => picked.push(p.id) });
   assert.equal(m.sources['t-src'].cluster, true);
-  assert.equal(Object.keys(m.layers).length, 3);
+  assert.equal(Object.keys(m.layers).length, 5);
   const dotClick = m.handlers.find(h => h[0] === 'click' && h[1] === 't-dot');
   dotClick[2]({ features: [{ properties: { id: 'a' } }] });
   assert.deepEqual(picked, ['a']);
@@ -44,6 +44,8 @@ test('addPinClusters builds a clustered source and cleans up fully', () => {
   assert.equal(m.sources['t-src'].data.features.length, 1);
   pins.setSelected('b');
   assert.deepEqual(m.paint['t-dotcircle-color'][1][2], 'b');
+  assert.deepEqual(m.paint['t-dotcircle-radius'], ['case', ['==', ['get', 'id'], 'b'], 11, 8]);
+  assert.deepEqual(m.paint['t-halocircle-radius'][2], 20);
   pins.remove();
   assert.equal(Object.keys(m.layers).length, 0);
   assert.equal(m.sources['t-src'], undefined);

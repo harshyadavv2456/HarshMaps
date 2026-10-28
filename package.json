@@ -1,6 +1,6 @@
 {
   "name": "harshmaps",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Configurable mapping SDK and experimental worldwide places layer built on open map infrastructure",
   "type": "module",
   "license": "MIT",
